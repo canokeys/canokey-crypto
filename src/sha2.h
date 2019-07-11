@@ -34,15 +34,15 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define   SHA1_BLOCK_LENGTH        64
-#define   SHA1_DIGEST_LENGTH        20
-#define   SHA1_DIGEST_STRING_LENGTH    (SHA1_DIGEST_LENGTH   * 2 + 1)
-#define SHA256_BLOCK_LENGTH        64
+#define SHA1_BLOCK_LENGTH           64
+#define SHA1_DIGEST_LENGTH          20
+#define SHA1_DIGEST_STRING_LENGTH   (SHA1_DIGEST_LENGTH   * 2 + 1)
+#define SHA256_BLOCK_LENGTH         64
 #define SHA256_DIGEST_LENGTH        32
-#define SHA256_DIGEST_STRING_LENGTH    (SHA256_DIGEST_LENGTH * 2 + 1)
-#define SHA512_BLOCK_LENGTH        128
+#define SHA256_DIGEST_STRING_LENGTH (SHA256_DIGEST_LENGTH * 2 + 1)
+#define SHA512_BLOCK_LENGTH         128
 #define SHA512_DIGEST_LENGTH        64
-#define SHA512_DIGEST_STRING_LENGTH    (SHA512_DIGEST_LENGTH * 2 + 1)
+#define SHA512_DIGEST_STRING_LENGTH (SHA512_DIGEST_LENGTH * 2 + 1)
 
 typedef struct _SHA1_CTX {
   uint32_t state[5];

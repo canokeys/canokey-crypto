@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.7)
 project(canokey_crypto C)
-
 set(CMAKE_C_STANDARD 11)
+add_subdirectory(src)
 
-add_library(canokey_crypto memzero.c memzero.h sha2.c sha2.h sha3.c sha3.h)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
+
+find_package(CMocka CONFIG REQUIRED)
+include(AddCMockaTest)
+include(AddMockedTest)
+add_subdirectory(test)
+enable_testing()
