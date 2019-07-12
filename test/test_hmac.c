@@ -6,6 +6,7 @@
 #include "hmac.h"
 
 static void test_hmac_sha256(void **state) {
+  (void) state;
   uint8_t key[4] = {0xde, 0xad, 0xbe, 0xef};
   uint8_t buf[32];
   uint8_t expected[] =
