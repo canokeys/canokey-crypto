@@ -23,7 +23,7 @@ static void test_hmac_sha256(void **state) {
 
 int main() {
   const struct CMUnitTest tests[] = {
-      cmocka_unit_test(test_hmac_sha256),
+      cmocka_unit_test(test_hmac_ecdsa),
   };
 
   return cmocka_run_group_tests(tests, NULL, NULL);
