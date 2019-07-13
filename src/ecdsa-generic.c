@@ -181,7 +181,16 @@ typedef struct jacobian_curve_point {
 // generate random K for signing/side-channel noise
 static void generate_k_random(bignum256 *k, const bignum256 *prime) {
 #ifdef TEST
-  bn_one(k);
+  int i;
+  uint64_t tmp = 0x0001020304050607ull;
+  bignum256 qword;
+  for (i = 0; i < 4; i++) {
+    bn_read_uint64(tmp, &qword);
+    for (int j = 0; j < 64; j++)
+      bn_lshift(k);
+    bn_xor(k, k, &qword);
+    tmp += 0x0808080808080808ull;
+  }
 #else
   do {
     int i;
