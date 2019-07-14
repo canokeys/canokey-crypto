@@ -2,6 +2,7 @@
 #define CANOKEY_CRYPTO_SRC_ECDSA_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef enum {
   ECDSA_SECP256R1,  // AKA NIST P-256
@@ -13,5 +14,7 @@ int ecdsa_sign(ECDSAType ecdsa_type, const uint8_t *priv_key, const uint8_t *dig
 int ecdsa_verify(ECDSAType ecdsa_type, const uint8_t *pub_key, const uint8_t *sig, const uint8_t *digest);
 
 int ecdsa_generate(ECDSAType ecdsa_type, uint8_t *priv_key, uint8_t *pub_key);
+
+size_t ecdsa_sig2ansi(const uint8_t *input, uint8_t *output);
 
 #endif //CANOKEY_CRYPTO_SRC_ECDSA_H
