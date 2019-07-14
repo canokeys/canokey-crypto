@@ -184,6 +184,7 @@ static void generate_k_random(bignum256 *k, const bignum256 *prime) {
   int i;
   uint64_t tmp = 0x0001020304050607ull;
   bignum256 qword;
+  bn_zero(k);
   for (i = 0; i < 4; i++) {
     bn_read_uint64(tmp, &qword);
     for (int j = 0; j < 64; j++)
