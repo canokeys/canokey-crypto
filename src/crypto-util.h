@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-void printHex(const uint8_t *buf, const size_t len);
+void printHex(const uint8_t *buf, size_t len);
 
 #endif //_UTILS_H
