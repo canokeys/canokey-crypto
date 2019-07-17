@@ -34,6 +34,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+// GCC Predefined Macros
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define BYTE_ORDER BIG_ENDIAN
+#endif
+
 #define SHA1_BLOCK_LENGTH           64
 #define SHA1_DIGEST_LENGTH          20
 #define SHA1_DIGEST_STRING_LENGTH   (SHA1_DIGEST_LENGTH   * 2 + 1)
