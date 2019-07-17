@@ -20,27 +20,65 @@
 #include <assert.h>
 #include <string.h>
 
-#include "sha3.h"
 #include "memzero.h"
+#include "sha3.h"
+
+static void swap_copy_u64_to_str(void *to, const void *from, size_t length);
+
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN 1234
+#define BIG_ENDIAN 4321
+#endif
+
+#ifndef BYTE_ORDER
+#define BYTE_ORDER LITTLE_ENDIAN
+#endif
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define le2me_64(x) (x)
+#define me64_to_le_str(to, from, length) memcpy((to), (from), (length))
+#else
+#define le2me_64(x) __builtin_bswap64(x)
+#define me64_to_le_str(to, from, length)                                       \
+  swap_copy_u64_to_str((to), (from), (length))
+#endif
 
 #define I64(x) x##LL
 #define ROTL64(qword, n) ((qword) << (n) ^ ((qword) >> (64 - (n))))
-#define le2me_64(x) (x)
-#define IS_ALIGNED_64(p) (0 == (7 & ((const char*)(p) - (const char*)0)))
-# define me64_to_le_str(to, from, length) memcpy((to), (from), (length))
+#define IS_ALIGNED_64(p) (0 == (7 & ((const char *)(p) - (const char *)0)))
 
 /* constants */
 #define NumberOfRounds 24
 
 /* SHA3 (Keccak) constants for 24 rounds */
 static uint64_t keccak_round_constants[NumberOfRounds] = {
-    I64(0x0000000000000001), I64(0x0000000000008082), I64(0x800000000000808A), I64(0x8000000080008000),
-    I64(0x000000000000808B), I64(0x0000000080000001), I64(0x8000000080008081), I64(0x8000000000008009),
-    I64(0x000000000000008A), I64(0x0000000000000088), I64(0x0000000080008009), I64(0x000000008000000A),
-    I64(0x000000008000808B), I64(0x800000000000008B), I64(0x8000000000008089), I64(0x8000000000008003),
-    I64(0x8000000000008002), I64(0x8000000000000080), I64(0x000000000000800A), I64(0x800000008000000A),
-    I64(0x8000000080008081), I64(0x8000000000008080), I64(0x0000000080000001), I64(0x8000000080008008)
-};
+    I64(0x0000000000000001), I64(0x0000000000008082), I64(0x800000000000808A),
+    I64(0x8000000080008000), I64(0x000000000000808B), I64(0x0000000080000001),
+    I64(0x8000000080008081), I64(0x8000000000008009), I64(0x000000000000008A),
+    I64(0x0000000000000088), I64(0x0000000080008009), I64(0x000000008000000A),
+    I64(0x000000008000808B), I64(0x800000000000008B), I64(0x8000000000008089),
+    I64(0x8000000000008003), I64(0x8000000000008002), I64(0x8000000000000080),
+    I64(0x000000000000800A), I64(0x800000008000000A), I64(0x8000000080008081),
+    I64(0x8000000000008080), I64(0x0000000080000001), I64(0x8000000080008008)};
+
+static void swap_copy_u64_to_str(void *to, const void *from, size_t length) {
+  /* if all pointers and length are 64-bits aligned */
+  if (0 ==
+      (((int)((char *)to - (char *)0) | ((char *)from - (char *)0) | length) &
+       7)) {
+    /* copy aligned memory block as 64-bit integers */
+    const uint64_t *src = (const uint64_t *)from;
+    const uint64_t *end = (const uint64_t *)((const char *)src + length);
+    uint64_t *dst = (uint64_t *)to;
+    while (src < end)
+      *(dst++) = __builtin_bswap64(*(src++));
+  } else {
+    size_t index;
+    char *dst = (char *)to;
+    for (index = 0; index < length; index++)
+      *(dst++) = ((char *)from)[index ^ 7];
+  }
+}
 
 /* Initializing a sha3 context for given number of output bits */
 static void keccak_Init(SHA3_CTX *ctx, unsigned bits) {
@@ -57,36 +95,28 @@ static void keccak_Init(SHA3_CTX *ctx, unsigned bits) {
  *
  * @param ctx context to initialize
  */
-void sha3_224_Init(SHA3_CTX *ctx) {
-  keccak_Init(ctx, 224);
-}
+void sha3_224_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 224); }
 
 /**
  * Initialize context before calculating hash.
  *
  * @param ctx context to initialize
  */
-void sha3_256_Init(SHA3_CTX *ctx) {
-  keccak_Init(ctx, 256);
-}
+void sha3_256_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 256); }
 
 /**
  * Initialize context before calculating hash.
  *
  * @param ctx context to initialize
  */
-void sha3_384_Init(SHA3_CTX *ctx) {
-  keccak_Init(ctx, 384);
-}
+void sha3_384_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 384); }
 
 /**
  * Initialize context before calculating hash.
  *
  * @param ctx context to initialize
  */
-void sha3_512_Init(SHA3_CTX *ctx) {
-  keccak_Init(ctx, 512);
-}
+void sha3_512_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 512); }
 
 /* Keccak theta() transformation */
 static void keccak_theta(uint64_t *A) {
@@ -201,7 +231,8 @@ static void sha3_permutation(uint64_t *state) {
  * @param block the message block to process
  * @param block_size the size of the processed block in bytes
  */
-static void sha3_process_block(uint64_t hash[25], const uint64_t *block, size_t block_size) {
+static void sha3_process_block(uint64_t hash[25], const uint64_t *block,
+                               size_t block_size) {
   /* expanded loop */
   hash[0] ^= le2me_64(block[0]);
   hash[1] ^= le2me_64(block[1]);
@@ -229,15 +260,15 @@ static void sha3_process_block(uint64_t hash[25], const uint64_t *block, size_t 
         hash[17] ^= le2me_64(block[17]);
 #ifdef FULL_SHA3_FAMILY_SUPPORT
         /* if not sha3-224 */
-                if (block_size > 144) {
-                    hash[18] ^= le2me_64(block[18]);
-                    hash[19] ^= le2me_64(block[19]);
-                    hash[20] ^= le2me_64(block[20]);
-                    hash[21] ^= le2me_64(block[21]);
-                    hash[22] ^= le2me_64(block[22]);
-                    hash[23] ^= le2me_64(block[23]);
-                    hash[24] ^= le2me_64(block[24]);
-                }
+        if (block_size > 144) {
+          hash[18] ^= le2me_64(block[18]);
+          hash[19] ^= le2me_64(block[19]);
+          hash[20] ^= le2me_64(block[20]);
+          hash[21] ^= le2me_64(block[21]);
+          hash[22] ^= le2me_64(block[22]);
+          hash[23] ^= le2me_64(block[23]);
+          hash[24] ^= le2me_64(block[24]);
+        }
 #endif
       }
     }
@@ -257,17 +288,17 @@ static void sha3_process_block(uint64_t hash[25], const uint64_t *block, size_t 
  * @param size length of the message chunk
  */
 void sha3_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
-  size_t idx = (size_t) ctx->rest;
-  size_t block_size = (size_t) ctx->block_size;
+  size_t idx = (size_t)ctx->rest;
+  size_t block_size = (size_t)ctx->block_size;
 
   if (ctx->rest & SHA3_FINALIZED)
     return; /* too late for additional input */
-  ctx->rest = (unsigned) ((ctx->rest + size) % block_size);
+  ctx->rest = (unsigned)((ctx->rest + size) % block_size);
 
   /* fill partial block */
   if (idx) {
     size_t left = block_size - idx;
-    memcpy((char *) ctx->message + idx, msg, (size < left ? size : left));
+    memcpy((char *)ctx->message + idx, msg, (size < left ? size : left));
     if (size < left)
       return;
 
@@ -281,7 +312,7 @@ void sha3_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
     if (IS_ALIGNED_64(msg)) {
       /* the most common case is processing of an already aligned message
       without copying it */
-      aligned_message_block = (uint64_t *) (void *) msg;
+      aligned_message_block = (uint64_t *)(void *)msg;
     } else {
       memcpy(ctx->message, msg, block_size);
       aligned_message_block = ctx->message;
@@ -308,9 +339,9 @@ void sha3_Final(SHA3_CTX *ctx, unsigned char *result) {
 
   if (!(ctx->rest & SHA3_FINALIZED)) {
     /* clear the rest of the data queue */
-    memzero((char *) ctx->message + ctx->rest, block_size - ctx->rest);
-    ((char *) ctx->message)[ctx->rest] |= 0x06;
-    ((char *) ctx->message)[block_size - 1] |= 0x80;
+    memzero((char *)ctx->message + ctx->rest, block_size - ctx->rest);
+    ((char *)ctx->message)[ctx->rest] |= 0x06;
+    ((char *)ctx->message)[block_size - 1] |= 0x80;
 
     /* process final block */
     sha3_process_block(ctx->hash, ctx->message, block_size);
@@ -324,20 +355,20 @@ void sha3_Final(SHA3_CTX *ctx, unsigned char *result) {
 }
 
 /**
-* Store calculated hash into the given array.
-*
-* @param ctx the algorithm context containing current hashing state
-* @param result calculated hash in binary form
-*/
+ * Store calculated hash into the given array.
+ *
+ * @param ctx the algorithm context containing current hashing state
+ * @param result calculated hash in binary form
+ */
 void keccak_Final(SHA3_CTX *ctx, unsigned char *result) {
   size_t digest_length = 100 - ctx->block_size / 2;
   const size_t block_size = ctx->block_size;
 
   if (!(ctx->rest & SHA3_FINALIZED)) {
     /* clear the rest of the data queue */
-    memzero((char *) ctx->message + ctx->rest, block_size - ctx->rest);
-    ((char *) ctx->message)[ctx->rest] |= 0x01;
-    ((char *) ctx->message)[block_size - 1] |= 0x80;
+    memzero((char *)ctx->message + ctx->rest, block_size - ctx->rest);
+    ((char *)ctx->message)[ctx->rest] |= 0x01;
+    ((char *)ctx->message)[block_size - 1] |= 0x80;
 
     /* process final block */
     sha3_process_block(ctx->hash, ctx->message, block_size);
