@@ -22,6 +22,11 @@
 
 #include <stdint.h>
 
+// GCC Predefined Macros
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define BYTE_ORDER BIG_ENDIAN
+#endif
+
 #define sha3_224_hash_size  28
 #define sha3_256_hash_size  32
 #define sha3_384_hash_size  48
