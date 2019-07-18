@@ -15,7 +15,7 @@ typedef struct {
   uint8_t *key;
   uint8_t block_size;
   void (*encrypt)(const uint8_t *in, uint8_t *out, const uint8_t *key);
-  void (*decrypt)(const uint8_t *in, uint8_t *out, const uint8_t *keyW);
+  void (*decrypt)(const uint8_t *in, uint8_t *out, const uint8_t *key);
 } block_cipher_config;
 
 int block_cipher_enc(block_cipher_config *cfg);
