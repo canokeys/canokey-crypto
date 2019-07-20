@@ -6,18 +6,6 @@
 #include "aes.h"
 #include "block-cipher.h"
 
-void aes_enc(const uint8_t *in, uint8_t *out, const uint8_t *key) {
-  WORD aes_key[64];
-  aes_key_setup(key, aes_key, 128);
-  aes_encrypt(in, out, aes_key, 128);
-}
-
-void aes_dec(const uint8_t *in, uint8_t *out, const uint8_t *key) {
-  WORD aes_key[64];
-  aes_key_setup(key, aes_key, 128);
-  aes_decrypt(in, out, aes_key, 128);
-}
-
 static void test_aes_ecb(void **state) {
   (void)state;
 

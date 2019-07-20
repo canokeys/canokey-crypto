@@ -18,5 +18,6 @@ add_mocked_test(ecdsa SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/rand.c
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/memzero.c)
 add_mocked_test(aes SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/aes-generic.c
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/aes.c
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/block-cipher.c)
