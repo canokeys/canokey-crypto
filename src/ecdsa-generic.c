@@ -27,11 +27,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <rand.h>
+#include <memzero.h>
 #include "bignum.h"
 #include "ecdsa-generic.h"
-#include "hmac.h"
-#include "memzero.h"
-#include "rand.h"
 
 // Set cp2 = cp1
 void point_copy(const curve_point *cp1, curve_point *cp2) { *cp2 = *cp1; }

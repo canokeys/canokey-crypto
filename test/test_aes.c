@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <cmocka.h>
 
-#include "aes.h"
-#include "block-cipher.h"
+#include <aes.h>
+#include <block-cipher.h>
 
 static void test_aes_ecb(void **state) {
   (void)state;
@@ -27,8 +27,8 @@ static void test_aes_ecb(void **state) {
                              .key = key,
                              .iv = NULL,
                              .block_size = 16,
-                             .encrypt = aes_enc,
-                             .decrypt = aes_dec};
+                             .encrypt = aes128_enc,
+                             .decrypt = aes128_dec};
   block_cipher_enc(&cfg);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(data[i], expected[i]);
@@ -66,8 +66,8 @@ static void test_aes_cbc(void **state) {
                              .key = key,
                              .iv = iv,
                              .block_size = 16,
-                             .encrypt = aes_enc,
-                             .decrypt = aes_dec};
+                             .encrypt = aes128_enc,
+                             .decrypt = aes128_dec};
   block_cipher_enc(&cfg);
   for (int i = 0; i != 48; ++i) {
     assert_int_equal(data[i], expected[i]);
@@ -105,8 +105,8 @@ static void test_aes_cfb(void **state) {
                              .key = key,
                              .iv = iv,
                              .block_size = 16,
-                             .encrypt = aes_enc,
-                             .decrypt = aes_dec};
+                             .encrypt = aes128_enc,
+                             .decrypt = aes128_dec};
   block_cipher_enc(&cfg);
   for (int i = 0; i != 48; ++i) {
     assert_int_equal(data[i], expected[i]);
@@ -144,8 +144,8 @@ static void test_aes_ofb(void **state) {
                              .key = key,
                              .iv = iv,
                              .block_size = 16,
-                             .encrypt = aes_enc,
-                             .decrypt = aes_dec};
+                             .encrypt = aes128_enc,
+                             .decrypt = aes128_dec};
   block_cipher_enc(&cfg);
   for (int i = 0; i != 48; ++i) {
     assert_int_equal(data[i], expected[i]);
@@ -178,8 +178,8 @@ static void test_aes_ctr(void **state) {
                              .key = key,
                              .iv = iv,
                              .block_size = 16,
-                             .encrypt = aes_enc,
-                             .decrypt = aes_dec};
+                             .encrypt = aes128_enc,
+                             .decrypt = aes128_dec};
   block_cipher_enc(&cfg);
   block_cipher_dec(&cfg);
   for (int i = 0; i != 16; ++i) {

@@ -20,6 +20,7 @@
 #ifndef __SHA3_H__
 #define __SHA3_H__
 
+#include <stddef.h>
 #include <stdint.h>
 
 // GCC Predefined Macros

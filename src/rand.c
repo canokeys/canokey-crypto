@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "rand.h"
+#include <rand.h>
 
 static uint32_t seed = 0;
 

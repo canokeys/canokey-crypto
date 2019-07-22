@@ -19,8 +19,8 @@
 
 #include <assert.h>
 #include <string.h>
+#include <memzero.h>
 
-#include "memzero.h"
 #include "sha3.h"
 
 static void swap_copy_u64_to_str(void *to, const void *from, size_t length);

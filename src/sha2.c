@@ -29,7 +29,7 @@
  */
 
 #include "sha2.h"
-#include "memzero.h"
+#include <memzero.h>
 #include <stdint.h>
 #include <string.h>
 

@@ -25,7 +25,7 @@
 #define __HMAC_H__
 
 #include <stdint.h>
-#include "sha2.h"
+#include <sha.h>
 
 typedef struct _HMAC_SHA256_CTX {
   uint8_t o_key_pad[SHA256_BLOCK_LENGTH];
