@@ -21,8 +21,8 @@ __attribute__((weak)) int rsa_generate_key(rsa_key_t *key, uint16_t nbits) {
   return 0;
 }
 
-__attribute__((weak)) int rsa_sign(rsa_key_t *key, void *data, uint16_t len,
-                                   void *sig) {
+__attribute__((weak)) int rsa_sign_pkcs_v15(rsa_key_t *key, void *data,
+                                            uint16_t len, void *sig) {
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, key->n, key->nbits / 8, key->p,
