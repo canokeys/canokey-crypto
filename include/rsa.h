@@ -14,5 +14,7 @@ typedef struct {
 int rsa_generate_key(rsa_key_t *key, uint16_t nbits);
 int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
                       void *sig);
+int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in, size_t *olen,
+                         void *out);
 
 #endif // CANOKEY_CORE_CANOKEY_CRYPTO_INCLUDE_RSA_H_
