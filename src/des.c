@@ -21,7 +21,7 @@ __attribute__((weak)) void tdes_enc(const void *in, void *out,
                                     const void *key) {
   mbedtls_des3_context ctx;
   mbedtls_des3_init(&ctx);
-  mbedtls_des3_set3key_dec(&ctx, key);
+  mbedtls_des3_set3key_enc(&ctx, key);
   mbedtls_des3_crypt_ecb(&ctx, in, out);
   mbedtls_des3_free(&ctx);
 }
