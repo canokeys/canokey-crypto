@@ -17,6 +17,7 @@ typedef struct {
 
 int rsa_generate_key(rsa_key_t *key);
 int rsa_complete_key(rsa_key_t *key);
+int rsa_private(rsa_key_t *key, const void *input, void *output);
 int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
                       void *sig);
 int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in, size_t *olen,
