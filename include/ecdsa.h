@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define ECDSA_KEY_SIZE 32
+#define ECDSA_PUB_KEY_SIZE 64
+
 typedef enum {
   ECDSA_SECP256R1, // AKA NIST P-256
   ECDSA_SECP256K1,

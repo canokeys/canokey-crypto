@@ -2,6 +2,7 @@
 #define CANOKEY_CORE_CANOKEY_CRYPTO_INCLUDE_RSA_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define RSA_N_BIT 2048u
 #define E_LENGTH 4
