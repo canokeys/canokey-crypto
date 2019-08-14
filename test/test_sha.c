@@ -12,10 +12,9 @@ static void test_sha1(void **state) {
                         0x3f, 0x52, 0xb5, 0x21, 0xd7, 0x42, 0x0e,
                         0x43, 0xf6, 0xed, 0xa2, 0x78, 0x4f};
   buf[0] = 0;
-  SHA1_CTX ctx;
-  sha1_Init(&ctx);
-  sha1_Update(&ctx, buf, 1);
-  sha1_Final(&ctx, buf);
+  sha1_init();
+  sha1_update(buf, 1);
+  sha1_final(buf);
   for (int i = 0; i != 20; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
@@ -29,10 +28,9 @@ static void test_sha256(void **state) {
                         0x78, 0x90, 0x1d, 0x3f, 0xb3, 0x37, 0x38, 0x76,
                         0x85, 0x11, 0xa3, 0x06, 0x17, 0xaf, 0xa0, 0x1d};
   buf[0] = 0;
-  SHA256_CTX ctx;
-  sha256_Init(&ctx);
-  sha256_Update(&ctx, buf, 1);
-  sha256_Final(&ctx, buf);
+  sha256_init();
+  sha256_update(buf, 1);
+  sha256_final(buf);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }

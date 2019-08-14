@@ -1,5 +1,5 @@
-#ifndef CANOKEY_CORE_CANOKEY_CRYPTO_SRC_BLOCK_CIPHER_H
-#define CANOKEY_CORE_CANOKEY_CRYPTO_SRC_BLOCK_CIPHER_H
+#ifndef CANOKEY_CRYPTO_BLOCK_CIPHER_H
+#define CANOKEY_CRYPTO_BLOCK_CIPHER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -21,4 +21,4 @@ typedef struct {
 int block_cipher_enc(block_cipher_config *cfg);
 int block_cipher_dec(block_cipher_config *cfg);
 
-#endif // CANOKEY_CORE_CANOKEY_CRYPTO_SRC_BLOCK_CIPHER_H
+#endif

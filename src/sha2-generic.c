@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include "sha2.h"
+#include "sha2-generic.h"
 #include <memzero.h>
 #include <stdint.h>
 #include <string.h>
@@ -614,43 +614,6 @@ void sha1_Final(SHA1_CTX *context, sha2_byte digest[]) {
   usedspace = 0;
 }
 
-char *sha1_End(SHA1_CTX *context, char buffer[]) {
-  sha2_byte digest[SHA1_DIGEST_LENGTH], *d = digest;
-  int i;
-
-  if (buffer != (char *) 0) {
-    sha1_Final(context, digest);
-
-    for (i = 0; i < SHA1_DIGEST_LENGTH; i++) {
-      *buffer++ = sha2_hex_digits[(*d & 0xf0) >> 4];
-      *buffer++ = sha2_hex_digits[*d & 0x0f];
-      d++;
-    }
-    *buffer = (char) 0;
-  } else {
-    memzero(context, sizeof(SHA1_CTX));
-  }
-  memzero(digest, SHA1_DIGEST_LENGTH);
-  return buffer;
-}
-
-void sha1_Raw(const sha2_byte *data, size_t len,
-              uint8_t digest[SHA1_DIGEST_LENGTH]) {
-  SHA1_CTX context;
-  sha1_Init(&context);
-  sha1_Update(&context, data, len);
-  sha1_Final(&context, digest);
-}
-
-char *sha1_Data(const sha2_byte *data, size_t len,
-                char digest[SHA1_DIGEST_STRING_LENGTH]) {
-  SHA1_CTX context;
-
-  sha1_Init(&context);
-  sha1_Update(&context, data, len);
-  return sha1_End(&context, digest);
-}
-
 /*** SHA-256: *********************************************************/
 void sha256_Init(SHA256_CTX *context) {
   if (context == (SHA256_CTX *) 0) {
@@ -925,43 +888,6 @@ void sha256_Final(SHA256_CTX *context, sha2_byte digest[]) {
   /* Clean up state data: */
   memzero(context, sizeof(SHA256_CTX));
   usedspace = 0;
-}
-
-char *sha256_End(SHA256_CTX *context, char buffer[]) {
-  sha2_byte digest[SHA256_DIGEST_LENGTH], *d = digest;
-  int i;
-
-  if (buffer != (char *) 0) {
-    sha256_Final(context, digest);
-
-    for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-      *buffer++ = sha2_hex_digits[(*d & 0xf0) >> 4];
-      *buffer++ = sha2_hex_digits[*d & 0x0f];
-      d++;
-    }
-    *buffer = (char) 0;
-  } else {
-    memzero(context, sizeof(SHA256_CTX));
-  }
-  memzero(digest, SHA256_DIGEST_LENGTH);
-  return buffer;
-}
-
-void sha256_Raw(const sha2_byte *data, size_t len,
-                uint8_t digest[SHA256_DIGEST_LENGTH]) {
-  SHA256_CTX context;
-  sha256_Init(&context);
-  sha256_Update(&context, data, len);
-  sha256_Final(&context, digest);
-}
-
-char *sha256_Data(const sha2_byte *data, size_t len,
-                  char digest[SHA256_DIGEST_STRING_LENGTH]) {
-  SHA256_CTX context;
-
-  sha256_Init(&context);
-  sha256_Update(&context, data, len);
-  return sha256_End(&context, digest);
 }
 
 /*** SHA-512: *********************************************************/
@@ -1241,39 +1167,10 @@ void sha512_Final(SHA512_CTX *context, sha2_byte digest[]) {
   memzero(context, sizeof(SHA512_CTX));
 }
 
-char *sha512_End(SHA512_CTX *context, char buffer[]) {
-  sha2_byte digest[SHA512_DIGEST_LENGTH], *d = digest;
-  int i;
-
-  if (buffer != (char *) 0) {
-    sha512_Final(context, digest);
-
-    for (i = 0; i < SHA512_DIGEST_LENGTH; i++) {
-      *buffer++ = sha2_hex_digits[(*d & 0xf0) >> 4];
-      *buffer++ = sha2_hex_digits[*d & 0x0f];
-      d++;
-    }
-    *buffer = (char) 0;
-  } else {
-    memzero(context, sizeof(SHA512_CTX));
-  }
-  memzero(digest, SHA512_DIGEST_LENGTH);
-  return buffer;
-}
-
 void sha512_Raw(const sha2_byte *data, size_t len,
                 uint8_t digest[SHA512_DIGEST_LENGTH]) {
   SHA512_CTX context;
   sha512_Init(&context);
   sha512_Update(&context, data, len);
   sha512_Final(&context, digest);
-}
-
-char *sha512_Data(const sha2_byte *data, size_t len,
-                  char digest[SHA512_DIGEST_STRING_LENGTH]) {
-  SHA512_CTX context;
-
-  sha512_Init(&context);
-  sha512_Update(&context, data, len);
-  return sha512_End(&context, digest);
 }

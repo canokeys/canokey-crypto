@@ -1,5 +1,5 @@
-#ifndef CANOKEY_CORE_CANOKEY_CRYPTO_INCLUDE_RSA_H_
-#define CANOKEY_CORE_CANOKEY_CRYPTO_INCLUDE_RSA_H_
+#ifndef CANOKEY_CRYPTO_RSA_H_
+#define CANOKEY_CRYPTO_RSA_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -24,4 +24,4 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
 int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in, size_t *olen,
                          void *out);
 
-#endif // CANOKEY_CORE_CANOKEY_CRYPTO_INCLUDE_RSA_H_
+#endif

@@ -1,5 +1,5 @@
-#ifndef CANOKEY_CRYPTO_SRC_ECC_H
-#define CANOKEY_CRYPTO_SRC_ECC_H
+#ifndef CANOKEY_CRYPTO_ECC_H
+#define CANOKEY_CRYPTO_ECC_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -36,4 +36,4 @@ int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
  */
 size_t ecdsa_sig2ansi(const uint8_t *input, uint8_t *output);
 
-#endif // CANOKEY_CRYPTO_SRC_ECC_H
+#endif
