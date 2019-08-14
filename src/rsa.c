@@ -100,15 +100,11 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, uint16_t len,
 
 int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, uint16_t *olen,
                          uint8_t *out) {
-#ifdef USE_MBEDCRYPTO
   if (rsa_private(key, in, out) < 0)
     return -1;
   int len = pkcs1_v15_remove_padding(out, N_LENGTH, out);
   if (len < 0)
     return -1;
   *olen = len;
-#else
-  (void)key;
-#endif
   return 0;
 }
