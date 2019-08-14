@@ -18,8 +18,8 @@
  */
 
 #include <assert.h>
-#include <string.h>
 #include <memzero.h>
+#include <string.h>
 
 #include "sha3.h"
 
@@ -61,7 +61,8 @@ static uint64_t keccak_round_constants[NumberOfRounds] = {
     I64(0x000000000000800A), I64(0x800000008000000A), I64(0x8000000080008081),
     I64(0x8000000000008080), I64(0x0000000080000001), I64(0x8000000080008008)};
 
-static void swap_copy_u64_to_str(void *to, const void *from, size_t length) {
+__attribute__((unused)) static void
+swap_copy_u64_to_str(void *to, const void *from, size_t length) {
   /* if all pointers and length are 64-bits aligned */
   if (0 ==
       (((int)((char *)to - (char *)0) | ((char *)from - (char *)0) | length) &

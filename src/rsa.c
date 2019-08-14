@@ -73,8 +73,8 @@ __attribute__((weak)) int rsa_complete_key(rsa_key_t *key) {
   return 0;
 }
 
-__attribute__((weak)) int rsa_private(rsa_key_t *key, const void *input,
-                                      void *output) {
+__attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input,
+                                      uint8_t *output) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
@@ -91,15 +91,16 @@ __attribute__((weak)) int rsa_private(rsa_key_t *key, const void *input,
   return 0;
 }
 
-int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
-                      void *sig) {
+int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, uint16_t len,
+                      uint8_t *sig) {
   if (pkcs1_v15_add_padding(data, len, sig, N_LENGTH) < 0)
     return -1;
   return rsa_private(key, sig, sig);
 }
 
-__attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in,
-                                               uint16_t *olen, void *out) {
+__attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key,
+                                               const uint8_t *in,
+                                               uint16_t *olen, uint8_t *out) {
 #ifdef USE_MBEDCRYPTO
   if (rsa_private(key, in, out) < 0)
     return -1;
