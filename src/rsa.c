@@ -1,13 +1,15 @@
-#include <mbedtls/rsa.h>
 #include <memory.h>
 #include <rand.h>
 #include <rsa.h>
+#ifdef USE_MBEDCRYPTO
+#include <mbedtls/rsa.h>
 
 static int rnd(void *ctx, unsigned char *buf, size_t n) {
-  (void)ctx;
+  (void) ctx;
   random_buffer(buf, n);
   return 0;
 }
+#endif
 
 static int pkcs1_v15_add_padding(const void *in, uint16_t in_len, uint8_t *out,
                                  uint16_t out_len) {
@@ -23,6 +25,7 @@ static int pkcs1_v15_add_padding(const void *in, uint16_t in_len, uint8_t *out,
 }
 
 __attribute__((weak)) int rsa_generate_key(rsa_key_t *key) {
+#ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_gen_key(&rsa, rnd, NULL, RSA_N_BIT, 65537) < 0)
@@ -30,10 +33,14 @@ __attribute__((weak)) int rsa_generate_key(rsa_key_t *key) {
   if (mbedtls_rsa_export_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
     return -1;
+#else
+  (void) key;
+#endif
   return 0;
 }
 
 __attribute__((weak)) int rsa_complete_key(rsa_key_t *key) {
+#ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, PQ_LENGTH, key->q,
@@ -44,11 +51,15 @@ __attribute__((weak)) int rsa_complete_key(rsa_key_t *key) {
   if (mbedtls_rsa_export_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
     return -1;
+#else
+  (void) key;
+#endif
   return 0;
 }
 
 __attribute__((weak)) int rsa_private(rsa_key_t *key, const void *input,
                                       void *output) {
+#ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
@@ -58,6 +69,9 @@ __attribute__((weak)) int rsa_private(rsa_key_t *key, const void *input,
     return -1;
   if (mbedtls_rsa_private(&rsa, rnd, NULL, input, output) < 0)
     return -1;
+#else
+  (void) key;
+#endif
   return 0;
 }
 
@@ -70,6 +84,7 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
 
 __attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in,
                                                size_t *olen, void *out) {
+#ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
@@ -80,5 +95,8 @@ __attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in,
   if (mbedtls_rsa_pkcs1_decrypt(&rsa, rnd, NULL, MBEDTLS_RSA_PRIVATE, olen, in,
                                 out, N_LENGTH) < 0)
     return -1;
+#else
+  (void) key;
+#endif
   return 0;
 }
