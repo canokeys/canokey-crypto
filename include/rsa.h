@@ -1,8 +1,8 @@
 #ifndef CANOKEY_CRYPTO_RSA_H_
 #define CANOKEY_CRYPTO_RSA_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define RSA_N_BIT 2048u
 #define E_LENGTH 4
@@ -21,7 +21,7 @@ int rsa_complete_key(rsa_key_t *key);
 int rsa_private(rsa_key_t *key, const void *input, void *output);
 int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
                       void *sig);
-int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in, size_t *olen,
+int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in, uint16_t *olen,
                          void *out);
 
 #endif

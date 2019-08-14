@@ -2,7 +2,7 @@
 #include "nist256p1.h"
 #include "secp256k1.h"
 #include <ecc.h>
-#include <memory.h>
+#include <string.h>
 
 __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key,
                                      const uint8_t *digest, uint8_t *sig) {

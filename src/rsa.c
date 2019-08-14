@@ -5,7 +5,7 @@
 #include <mbedtls/rsa.h>
 
 static int rnd(void *ctx, unsigned char *buf, size_t n) {
-  (void) ctx;
+  (void)ctx;
   random_buffer(buf, n);
   return 0;
 }
@@ -24,6 +24,22 @@ static int pkcs1_v15_add_padding(const void *in, uint16_t in_len, uint8_t *out,
   return 0;
 }
 
+static int pkcs1_v15_remove_padding(const uint8_t *in, uint16_t in_len,
+                                    uint8_t *out) {
+  if (in_len < 11)
+    return -1;
+  if (in[0] != 0x00 || in[1] != 0x02)
+    return -1;
+  uint16_t i;
+  for (i = 2; i < in_len; ++i)
+    if (in[i] == 0x00)
+      break;
+  if (i == in_len || i - 2 < 8)
+    return -1;
+  memmove(out, in + i + 1, in_len - (i + 1));
+  return in_len - (i + 1);
+}
+
 __attribute__((weak)) int rsa_generate_key(rsa_key_t *key) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
@@ -34,7 +50,7 @@ __attribute__((weak)) int rsa_generate_key(rsa_key_t *key) {
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
     return -1;
 #else
-  (void) key;
+  (void)key;
 #endif
   return 0;
 }
@@ -52,7 +68,7 @@ __attribute__((weak)) int rsa_complete_key(rsa_key_t *key) {
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
     return -1;
 #else
-  (void) key;
+  (void)key;
 #endif
   return 0;
 }
@@ -70,7 +86,7 @@ __attribute__((weak)) int rsa_private(rsa_key_t *key, const void *input,
   if (mbedtls_rsa_private(&rsa, rnd, NULL, input, output) < 0)
     return -1;
 #else
-  (void) key;
+  (void)key;
 #endif
   return 0;
 }
@@ -83,20 +99,16 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const void *data, uint16_t len,
 }
 
 __attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key, const void *in,
-                                               size_t *olen, void *out) {
+                                               uint16_t *olen, void *out) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_rsa_context rsa;
-  mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
-  if (mbedtls_rsa_import_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
-                             PQ_LENGTH, NULL, 0, key->e, 4) < 0)
+  if (rsa_private(key, in, out) < 0)
     return -1;
-  if (mbedtls_rsa_complete(&rsa) < 0)
+  int len = pkcs1_v15_remove_padding(out, N_LENGTH, out);
+  if (len < 0)
     return -1;
-  if (mbedtls_rsa_pkcs1_decrypt(&rsa, rnd, NULL, MBEDTLS_RSA_PRIVATE, olen, in,
-                                out, N_LENGTH) < 0)
-    return -1;
+  *olen = len;
 #else
-  (void) key;
+  (void)key;
 #endif
   return 0;
 }
