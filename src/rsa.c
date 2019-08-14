@@ -98,9 +98,8 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, uint16_t len,
   return rsa_private(key, sig, sig);
 }
 
-__attribute__((weak)) int rsa_decrypt_pkcs_v15(rsa_key_t *key,
-                                               const uint8_t *in,
-                                               uint16_t *olen, uint8_t *out) {
+int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, uint16_t *olen,
+                         uint8_t *out) {
 #ifdef USE_MBEDCRYPTO
   if (rsa_private(key, in, out) < 0)
     return -1;
