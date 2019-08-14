@@ -1,6 +1,6 @@
-#include <memory.h>
 #include <rand.h>
 #include <rsa.h>
+#include <string.h>
 #ifdef USE_MBEDCRYPTO
 #include <mbedtls/rsa.h>
 
