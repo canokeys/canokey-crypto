@@ -1,4 +1,3 @@
-#include <crypto-define.h>
 #include <rand.h>
 #include <stdio.h>
 
@@ -10,7 +9,7 @@ void print_hex(const uint8_t *buf, size_t len) {
   printf("\n");
 }
 
-CRYPTO_RESULT memcmp_s(const uint8_t *p, const uint8_t *q, size_t len) {
+int memcmp_s(const uint8_t *p, const uint8_t *q, size_t len) {
   size_t equal = 0, notequal = 0;
   for (size_t i = 0; i != len; ++i)
     if (p[i] == q[i])
@@ -20,9 +19,9 @@ CRYPTO_RESULT memcmp_s(const uint8_t *p, const uint8_t *q, size_t len) {
   if (equal + notequal != len)
     raise_exception();
   if (equal == len)
-    return SUCCESS;
+    return 0;
   else
-    return FAILURE;
+    return -1;
 }
 
 void random_delay(void) {
