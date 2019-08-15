@@ -1,6 +1,7 @@
 #ifndef CANOKEY_CRYPTO_RSA_H_
 #define CANOKEY_CRYPTO_RSA_H_
 
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -10,10 +11,10 @@
 #define PQ_LENGTH (RSA_N_BIT / 16)
 
 typedef struct {
-  uint8_t e[E_LENGTH];
-  uint8_t p[PQ_LENGTH];
-  uint8_t q[PQ_LENGTH];
-  uint8_t n[N_LENGTH];
+  alignas(4) uint8_t e[E_LENGTH];
+  alignas(4) uint8_t p[PQ_LENGTH];
+  alignas(4) uint8_t q[PQ_LENGTH];
+  alignas(4) uint8_t n[N_LENGTH];
 } rsa_key_t;
 
 int rsa_generate_key(rsa_key_t *key);
