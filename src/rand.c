@@ -25,12 +25,12 @@
 
 static uint32_t seed = 0;
 
-uint32_t __attribute__((weak)) random32(void) {
+__attribute__((weak)) uint32_t random32(void) {
   seed = 1664525 * seed + 1013904223;
   return seed;
 }
 
-void __attribute__((weak)) random_buffer(uint8_t *buf, size_t len) {
+__attribute__((weak)) void random_buffer(uint8_t *buf, size_t len) {
   uint32_t r = 0;
   for (size_t i = 0; i < len; i++) {
     if (i % 4 == 0) {

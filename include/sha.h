@@ -2,6 +2,7 @@
 #define CANOKEY_CRYPTO_SHA_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define SHA1_BLOCK_LENGTH           64
 #define SHA1_DIGEST_LENGTH          20

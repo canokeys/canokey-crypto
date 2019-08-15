@@ -1,19 +1,20 @@
 #include <block-cipher.h>
+#include <memzero.h>
 #include <string.h>
 
 static void xor_buf(const uint8_t *in, uint8_t *out, size_t len);
 static void increment_iv(uint8_t *iv, uint8_t block_size);
 
-int block_cipher_enc(block_cipher_config *cfg) {
+CRYPTO_RESULT block_cipher_enc(block_cipher_config *cfg) {
   if (cfg->block_size % 8 != 0 || cfg->in_size % cfg->block_size != 0)
-    return -1;
+    return FAILURE;
 
   uint8_t buf_in[cfg->block_size], iv_buf[cfg->block_size];
   int blocks = cfg->in_size / cfg->block_size;
 
   if (cfg->mode != ECB) {
     if (cfg->iv == NULL)
-      return -1;
+      return FAILURE;
     memcpy(iv_buf, cfg->iv, cfg->block_size);
   }
 
@@ -50,19 +51,22 @@ int block_cipher_enc(block_cipher_config *cfg) {
     }
   }
 
-  return 0;
+  memzero(buf_in, sizeof(buf_in));
+  memzero(iv_buf, sizeof(iv_buf));
+
+  return SUCCESS;
 }
 
-int block_cipher_dec(block_cipher_config *cfg) {
+CRYPTO_RESULT block_cipher_dec(block_cipher_config *cfg) {
   if (cfg->block_size % 8 != 0 || cfg->in_size % cfg->block_size != 0)
-    return -1;
+    return FAILURE;
 
   uint8_t buf_in[cfg->block_size], iv_buf[cfg->block_size];
   int blocks = cfg->in_size / cfg->block_size;
 
   if (cfg->mode != ECB) {
     if (cfg->iv == NULL)
-      return -1;
+      return FAILURE;
     memcpy(iv_buf, cfg->iv, cfg->block_size);
   }
 
@@ -100,7 +104,10 @@ int block_cipher_dec(block_cipher_config *cfg) {
     }
   }
 
-  return 0;
+  memzero(buf_in, sizeof(buf_in));
+  memzero(iv_buf, sizeof(iv_buf));
+
+  return SUCCESS;
 }
 
 static void xor_buf(const uint8_t *in, uint8_t *out, size_t len) {

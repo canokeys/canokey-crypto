@@ -24,13 +24,14 @@
 #ifndef __HMAC_H__
 #define __HMAC_H__
 
-#include <stdint.h>
 #include <sha.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#define SHA256_BLOCK_LENGTH         64
-#define SHA256_DIGEST_LENGTH        32
-#define SHA512_BLOCK_LENGTH         128
-#define SHA512_DIGEST_LENGTH        64
+#define SHA256_BLOCK_LENGTH 64
+#define SHA256_DIGEST_LENGTH 32
+#define SHA512_BLOCK_LENGTH 128
+#define SHA512_DIGEST_LENGTH 64
 
 typedef struct _HMAC_SHA256_CTX {
   uint8_t o_key_pad[SHA256_BLOCK_LENGTH];
@@ -41,19 +42,19 @@ typedef struct _HMAC_SHA512_CTX {
 } HMAC_SHA512_CTX;
 
 void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key,
-                      const uint32_t keylen);
+                      size_t keylen);
 void hmac_sha256_Update(HMAC_SHA256_CTX *hctx, const uint8_t *msg,
-                        const uint32_t msglen);
+                        size_t msglen);
 void hmac_sha256_Final(HMAC_SHA256_CTX *hctx, uint8_t *hmac);
-void hmac_sha256(const uint8_t *key, const uint32_t keylen, const uint8_t *msg,
-                 const uint32_t msglen, uint8_t *hmac);
+void hmac_sha256(const uint8_t *key, size_t keylen, const uint8_t *msg,
+                 size_t msglen, uint8_t *hmac);
 
 void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key,
-                      const uint32_t keylen);
+                      size_t keylen);
 void hmac_sha512_Update(HMAC_SHA512_CTX *hctx, const uint8_t *msg,
-                        const uint32_t msglen);
+                        size_t msglen);
 void hmac_sha512_Final(HMAC_SHA512_CTX *hctx, uint8_t *hmac);
-void hmac_sha512(const uint8_t *key, const uint32_t keylen, const uint8_t *msg,
-                 const uint32_t msglen, uint8_t *hmac);
+void hmac_sha512(const uint8_t *key, size_t keylen, const uint8_t *msg,
+                 size_t msglen, uint8_t *hmac);
 
 #endif

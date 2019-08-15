@@ -21,12 +21,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <string.h>
 #include <hmac.h>
 #include <memzero.h>
+#include <string.h>
 
 void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key,
-                      const uint32_t keylen) {
+                      size_t keylen) {
   static uint8_t i_key_pad[SHA256_BLOCK_LENGTH];
   memzero(i_key_pad, SHA256_BLOCK_LENGTH);
   if (keylen > SHA256_BLOCK_LENGTH) {
@@ -44,7 +44,7 @@ void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key,
 }
 
 void hmac_sha256_Update(HMAC_SHA256_CTX *hctx, const uint8_t *msg,
-                        const uint32_t msglen) {
+                        size_t msglen) {
   sha256_update(msg, msglen);
 }
 
@@ -57,8 +57,8 @@ void hmac_sha256_Final(HMAC_SHA256_CTX *hctx, uint8_t *hmac) {
   memzero(hctx, sizeof(HMAC_SHA256_CTX));
 }
 
-void hmac_sha256(const uint8_t *key, const uint32_t keylen, const uint8_t *msg,
-                 const uint32_t msglen, uint8_t *hmac) {
+void hmac_sha256(const uint8_t *key, size_t keylen, const uint8_t *msg,
+                 size_t msglen, uint8_t *hmac) {
   static HMAC_SHA256_CTX hctx;
   hmac_sha256_Init(&hctx, key, keylen);
   hmac_sha256_Update(&hctx, msg, msglen);
@@ -66,7 +66,7 @@ void hmac_sha256(const uint8_t *key, const uint32_t keylen, const uint8_t *msg,
 }
 
 void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key,
-                      const uint32_t keylen) {
+                      size_t keylen) {
   static uint8_t i_key_pad[SHA512_BLOCK_LENGTH];
   memzero(i_key_pad, SHA512_BLOCK_LENGTH);
   if (keylen > SHA512_BLOCK_LENGTH) {
@@ -84,7 +84,7 @@ void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key,
 }
 
 void hmac_sha512_Update(HMAC_SHA512_CTX *hctx, const uint8_t *msg,
-                        const uint32_t msglen) {
+                        size_t msglen) {
   sha512_update(msg, msglen);
 }
 
@@ -97,8 +97,8 @@ void hmac_sha512_Final(HMAC_SHA512_CTX *hctx, uint8_t *hmac) {
   memzero(hctx, sizeof(HMAC_SHA512_CTX));
 }
 
-void hmac_sha512(const uint8_t *key, const uint32_t keylen, const uint8_t *msg,
-                 const uint32_t msglen, uint8_t *hmac) {
+void hmac_sha512(const uint8_t *key, size_t keylen, const uint8_t *msg,
+                 size_t msglen, uint8_t *hmac) {
   HMAC_SHA512_CTX hctx;
   hmac_sha512_Init(&hctx, key, keylen);
   hmac_sha512_Update(&hctx, msg, msglen);

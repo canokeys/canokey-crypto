@@ -1,7 +1,9 @@
 #ifndef CANOKEY_CRYPTO_AES_H
 #define CANOKEY_CRYPTO_AES_H
 
-void aes128_enc(const void *in, void *out, const void *key);
-void aes128_dec(const void *in, void *out, const void *key);
+#include <crypto-define.h>
+
+CRYPTO_RESULT aes128_enc(const uint8_t *in, uint8_t *out, const uint8_t *key);
+CRYPTO_RESULT aes128_dec(const uint8_t *in, uint8_t *out, const uint8_t *key);
 
 #endif

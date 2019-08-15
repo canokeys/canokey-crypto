@@ -40,71 +40,73 @@ static int pkcs1_v15_remove_padding(const uint8_t *in, uint16_t in_len,
   return in_len - (i + 1);
 }
 
-__attribute__((weak)) int rsa_generate_key(rsa_key_t *key) {
+__attribute__((weak)) CRYPTO_RESULT rsa_generate_key(rsa_key_t *key) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_gen_key(&rsa, rnd, NULL, RSA_N_BIT, 65537) < 0)
-    return -1;
+    return FAILURE;
   if (mbedtls_rsa_export_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
-    return -1;
+    return FAILURE;
 #else
   (void)key;
 #endif
-  return 0;
+  return SUCCESS;
 }
 
-__attribute__((weak)) int rsa_complete_key(rsa_key_t *key) {
+__attribute__((weak)) CRYPTO_RESULT rsa_complete_key(rsa_key_t *key) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
-    return -1;
+    return FAILURE;
   if (mbedtls_rsa_complete(&rsa) < 0)
-    return -1;
+    return FAILURE;
   if (mbedtls_rsa_export_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
-    return -1;
+    return FAILURE;
 #else
   (void)key;
 #endif
-  return 0;
+  return SUCCESS;
 }
 
-__attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input,
-                                      uint8_t *output) {
+__attribute__((weak)) CRYPTO_RESULT
+rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   if (mbedtls_rsa_import_raw(&rsa, key->n, N_LENGTH, key->p, PQ_LENGTH, key->q,
                              PQ_LENGTH, NULL, 0, key->e, 4) < 0)
-    return -1;
+    return FAILURE;
   if (mbedtls_rsa_complete(&rsa) < 0)
-    return -1;
+    return FAILURE;
   if (mbedtls_rsa_private(&rsa, rnd, NULL, input, output) < 0)
-    return -1;
+    return FAILURE;
 #else
   (void)key;
+  (void)input;
+  (void)output;
 #endif
-  return 0;
+  return SUCCESS;
 }
 
-int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, uint16_t len,
-                      uint8_t *sig) {
+CRYPTO_RESULT rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len,
+                                uint8_t *sig) {
   if (pkcs1_v15_add_padding(data, len, sig, N_LENGTH) < 0)
-    return -1;
+    return FAILURE;
   return rsa_private(key, sig, sig);
 }
 
-int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, uint16_t *olen,
-                         uint8_t *out) {
+CRYPTO_RESULT rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in,
+                                   size_t *olen, uint8_t *out) {
   if (rsa_private(key, in, out) < 0)
-    return -1;
+    return FAILURE;
   int len = pkcs1_v15_remove_padding(out, N_LENGTH, out);
   if (len < 0)
-    return -1;
+    return FAILURE;
   *olen = len;
-  return 0;
+  return SUCCESS;
 }
