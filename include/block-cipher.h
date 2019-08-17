@@ -8,14 +8,14 @@ enum BLOCK_CIPHER_MODE { ECB, CBC, CFB, OFB, CTR };
 
 typedef struct {
   enum BLOCK_CIPHER_MODE mode;
-  uint8_t *in;
+  const uint8_t *in;
   size_t in_size;
   uint8_t *out;
-  uint8_t *iv;
-  uint8_t *key;
+  const uint8_t *iv;
+  const uint8_t *key;
   uint8_t block_size;
-  void (*encrypt)(const void *in, void *out, const void *key);
-  void (*decrypt)(const void *in, void *out, const void *key);
+  int (*encrypt)(const uint8_t *in, uint8_t *out, const uint8_t *key);
+  int (*decrypt)(const uint8_t *in, uint8_t *out, const uint8_t *key);
 } block_cipher_config;
 
 int block_cipher_enc(block_cipher_config *cfg);

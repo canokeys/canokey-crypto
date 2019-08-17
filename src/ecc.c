@@ -2,7 +2,8 @@
 #include "nist256p1.h"
 #include "secp256k1.h"
 #include <ecc.h>
-#include <memory.h>
+#include <memzero.h>
+#include <string.h>
 
 __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key,
                                      const uint8_t *digest, uint8_t *sig) {
@@ -13,7 +14,9 @@ __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key,
     cur = &secp256k1;
   else
     return -1;
-  return ecdsa_sign_digest(cur, priv_key, digest, sig);
+  if (ecdsa_sign_digest(cur, priv_key, digest, sig) < 0)
+    return -1;
+  return 0;
 }
 
 __attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key,
@@ -71,6 +74,7 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
   point_multiply(cur, &s, &pub, &pub);
   bn_write_be(&pub.x, out);
   bn_write_be(&pub.y, out + 32);
+  memzero(&s, sizeof(s));
   return 0;
 }
 

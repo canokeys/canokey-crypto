@@ -1,4 +1,5 @@
 #include <block-cipher.h>
+#include <memzero.h>
 #include <string.h>
 
 static void xor_buf(const uint8_t *in, uint8_t *out, size_t len);
@@ -17,40 +18,50 @@ int block_cipher_enc(block_cipher_config *cfg) {
     memcpy(iv_buf, cfg->iv, cfg->block_size);
   }
 
+  int ret = 0;
   for (int idx = 0; idx < blocks; idx++) {
     switch (cfg->mode) {
     case ECB:
-      cfg->encrypt(cfg->in + idx * cfg->block_size,
-                   cfg->out + idx * cfg->block_size, cfg->key);
+      ret = cfg->encrypt(cfg->in + idx * cfg->block_size,
+                         cfg->out + idx * cfg->block_size, cfg->key);
       break;
     case CBC:
       memcpy(buf_in, cfg->in + idx * cfg->block_size, cfg->block_size);
       xor_buf(iv_buf, buf_in, cfg->block_size);
-      cfg->encrypt(buf_in, cfg->out + idx * cfg->block_size, cfg->key);
-      cfg->encrypt(buf_in, iv_buf, cfg->key);
+      ret = cfg->encrypt(buf_in, cfg->out + idx * cfg->block_size, cfg->key);
+      if (ret < 0)
+        break;
+      ret = cfg->encrypt(buf_in, iv_buf, cfg->key);
       memcpy(cfg->out + idx * cfg->block_size, iv_buf, cfg->block_size);
       break;
     case CFB:
-      cfg->encrypt(iv_buf, iv_buf, cfg->key);
+      ret = cfg->encrypt(iv_buf, iv_buf, cfg->key);
       xor_buf(cfg->in + idx * cfg->block_size, iv_buf, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, iv_buf, cfg->block_size);
       break;
     case OFB:
-      cfg->encrypt(iv_buf, iv_buf, cfg->key);
+      ret = cfg->encrypt(iv_buf, iv_buf, cfg->key);
       memcpy(buf_in, cfg->in + idx * cfg->block_size, cfg->block_size);
       xor_buf(iv_buf, buf_in, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, buf_in, cfg->block_size);
       break;
     case CTR:
-      cfg->encrypt(iv_buf, buf_in, cfg->key);
+      ret = cfg->encrypt(iv_buf, buf_in, cfg->key);
       xor_buf(cfg->in + idx * cfg->block_size, buf_in, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, buf_in, cfg->block_size);
       increment_iv(iv_buf, cfg->block_size);
       break;
+    default:
+      ret = -1;
+      break;
     }
+    if (ret < 0)
+      break;
   }
 
-  return 0;
+  memzero(buf_in, sizeof(buf_in));
+  memzero(iv_buf, sizeof(iv_buf));
+  return ret;
 }
 
 int block_cipher_dec(block_cipher_config *cfg) {
@@ -66,41 +77,49 @@ int block_cipher_dec(block_cipher_config *cfg) {
     memcpy(iv_buf, cfg->iv, cfg->block_size);
   }
 
+  int ret = 0;
   for (int idx = 0; idx < blocks; idx++) {
     switch (cfg->mode) {
     case ECB:
-      cfg->decrypt(cfg->in + idx * cfg->block_size,
-                   cfg->out + idx * cfg->block_size, cfg->key);
+      ret = cfg->decrypt(cfg->in + idx * cfg->block_size,
+                         cfg->out + idx * cfg->block_size, cfg->key);
       break;
     case CBC:
       memcpy(buf_in, cfg->in + idx * cfg->block_size, cfg->block_size);
-      cfg->decrypt(buf_in, cfg->out + idx * cfg->block_size, cfg->key);
+      ret = cfg->decrypt(buf_in, cfg->out + idx * cfg->block_size, cfg->key);
       xor_buf(iv_buf, cfg->out + idx * cfg->block_size, cfg->block_size);
       memcpy(iv_buf, buf_in, cfg->block_size);
       break;
     case CFB:
-      cfg->encrypt(iv_buf, iv_buf, cfg->key);
+      ret = cfg->encrypt(iv_buf, iv_buf, cfg->key);
       memcpy(buf_in, cfg->in + idx * cfg->block_size, cfg->block_size);
       xor_buf(cfg->in + idx * cfg->block_size, iv_buf, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, iv_buf, cfg->block_size);
       memcpy(iv_buf, buf_in, cfg->block_size);
       break;
     case OFB:
-      cfg->encrypt(iv_buf, iv_buf, cfg->key);
+      ret = cfg->encrypt(iv_buf, iv_buf, cfg->key);
       memcpy(buf_in, cfg->in + idx * cfg->block_size, cfg->block_size);
       xor_buf(iv_buf, buf_in, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, buf_in, cfg->block_size);
       break;
     case CTR:
-      cfg->encrypt(iv_buf, buf_in, cfg->key);
+      ret = cfg->encrypt(iv_buf, buf_in, cfg->key);
       xor_buf(cfg->in + idx * cfg->block_size, buf_in, cfg->block_size);
       memcpy(cfg->out + idx * cfg->block_size, buf_in, cfg->block_size);
       increment_iv(iv_buf, cfg->block_size);
       break;
+    default:
+      ret = -1;
+      break;
     }
+    if (ret < 0)
+      break;
   }
 
-  return 0;
+  memzero(buf_in, sizeof(buf_in));
+  memzero(iv_buf, sizeof(iv_buf));
+  return ret;
 }
 
 static void xor_buf(const uint8_t *in, uint8_t *out, size_t len) {
