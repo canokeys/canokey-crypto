@@ -9,10 +9,11 @@ option(USE_MBEDCRYPTO "Use mbed-crypto as the crypto library" ON)
 
 if (USE_MBEDCRYPTO)
     add_definitions(-DUSE_MBEDCRYPTO)
-    set(USE_STATIC_MBEDTLS_LIBRARY ON)
-    set(USE_SHARED_MBEDTLS_LIBRARY OFF)
-    set(USE_CRYPTO_SUBMODULE ON)
-    set(ENABLE_TESTING OFF) # disable mbedtls tests
+    set(USE_STATIC_MBEDTLS_LIBRARY ON CACHE BOOL "")
+    set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "")
+    set(USE_CRYPTO_SUBMODULE ON CACHE BOOL "")
+    set(ENABLE_PROGRAMS OFF CACHE BOOL "")
+    set(ENABLE_TESTING OFF CACHE BOOL "") # disable mbedtls tests
     add_subdirectory(mbed-crypto)
 endif (USE_MBEDCRYPTO)
 
