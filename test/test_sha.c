@@ -70,6 +70,23 @@ static void test_sha3_256(void **state) {
   }
 }
 
+static void test_hmac_sha1(void **state) {
+  (void)state;
+  uint8_t key[4] = {0xde, 0xad, 0xbe, 0xef};
+  uint8_t buf[20];
+  uint8_t expected[] = {0xf0, 0xfb, 0x6b, 0x43, 0x7a, 0x6a, 0x18, 0x3b, 0xc3,
+                        0x28, 0x8d, 0xc6, 0xd4, 0xa1, 0x03, 0x34, 0x26, 0x5e,
+                        0x47, 0x0f};
+  buf[0] = 0;
+  HMAC_SHA1_CTX ctx;
+  hmac_sha1_Init(&ctx, key, sizeof(key));
+  hmac_sha1_Update(&ctx, buf, 1);
+  hmac_sha1_Final(&ctx, buf);
+  for (int i = 0; i != 20; ++i) {
+    assert_int_equal(buf[i], expected[i]);
+  }
+}
+
 static void test_hmac_sha256(void **state) {
   (void)state;
   uint8_t key[4] = {0xde, 0xad, 0xbe, 0xef};
@@ -94,6 +111,7 @@ int main() {
       cmocka_unit_test(test_sha256),
       cmocka_unit_test(test_keccak256),
       cmocka_unit_test(test_sha3_256),
+      cmocka_unit_test(test_hmac_sha1),
       cmocka_unit_test(test_hmac_sha256),
   };
 
