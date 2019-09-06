@@ -41,3 +41,27 @@ __attribute__((weak)) int aes128_dec(const uint8_t *in, uint8_t *out,
   return 0;
 #endif
 }
+
+__attribute__((weak)) int aes256_enc(const uint8_t *in, uint8_t *out,
+                                     const uint8_t *key) {
+#ifdef USE_MBEDCRYPTO
+  return aes(in, out, key, 256, MBEDTLS_AES_ENCRYPT);
+#else
+  (void)in;
+  (void)out;
+  (void)key;
+  return 0;
+#endif
+}
+
+__attribute__((weak)) int aes256_dec(const uint8_t *in, uint8_t *out,
+                                     const uint8_t *key) {
+#ifdef USE_MBEDCRYPTO
+  return aes(in, out, key, 256, MBEDTLS_AES_DECRYPT);
+#else
+  (void)in;
+  (void)out;
+  (void)key;
+  return 0;
+#endif
+}
