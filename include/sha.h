@@ -1,15 +1,15 @@
 #ifndef CANOKEY_CRYPTO_SHA_H_
 #define CANOKEY_CRYPTO_SHA_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-#define SHA1_BLOCK_LENGTH           64
-#define SHA1_DIGEST_LENGTH          20
-#define SHA256_BLOCK_LENGTH         64
-#define SHA256_DIGEST_LENGTH        32
-#define SHA512_BLOCK_LENGTH         128
-#define SHA512_DIGEST_LENGTH        64
+#define SHA1_BLOCK_LENGTH 64
+#define SHA1_DIGEST_LENGTH 20
+#define SHA256_BLOCK_LENGTH 64
+#define SHA256_DIGEST_LENGTH 32
+#define SHA512_BLOCK_LENGTH 128
+#define SHA512_DIGEST_LENGTH 64
 
 void sha1_init(void);
 void sha1_update(const uint8_t *data, uint16_t len);

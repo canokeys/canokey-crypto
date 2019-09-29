@@ -50,21 +50,16 @@ typedef struct _HMAC_SHA512_CTX {
 void hmac_sha1_Init(HMAC_SHA1_CTX *hctx, const uint8_t *key, size_t keylen);
 void hmac_sha1_Update(HMAC_SHA1_CTX *hctx, const uint8_t *msg, size_t msglen);
 void hmac_sha1_Final(HMAC_SHA1_CTX *hctx, uint8_t *hmac);
-void hmac_sha1(const uint8_t *key, size_t keylen, const uint8_t *msg,
-               size_t msglen, uint8_t *hmac);
+void hmac_sha1(const uint8_t *key, size_t keylen, const uint8_t *msg, size_t msglen, uint8_t *hmac);
 
 void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key, size_t keylen);
-void hmac_sha256_Update(HMAC_SHA256_CTX *hctx, const uint8_t *msg,
-                        size_t msglen);
+void hmac_sha256_Update(HMAC_SHA256_CTX *hctx, const uint8_t *msg, size_t msglen);
 void hmac_sha256_Final(HMAC_SHA256_CTX *hctx, uint8_t *hmac);
-void hmac_sha256(const uint8_t *key, size_t keylen, const uint8_t *msg,
-                 size_t msglen, uint8_t *hmac);
+void hmac_sha256(const uint8_t *key, size_t keylen, const uint8_t *msg, size_t msglen, uint8_t *hmac);
 
 void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key, size_t keylen);
-void hmac_sha512_Update(HMAC_SHA512_CTX *hctx, const uint8_t *msg,
-                        size_t msglen);
+void hmac_sha512_Update(HMAC_SHA512_CTX *hctx, const uint8_t *msg, size_t msglen);
 void hmac_sha512_Final(HMAC_SHA512_CTX *hctx, uint8_t *hmac);
-void hmac_sha512(const uint8_t *key, size_t keylen, const uint8_t *msg,
-                 size_t msglen, uint8_t *hmac);
+void hmac_sha512(const uint8_t *key, size_t keylen, const uint8_t *msg, size_t msglen, uint8_t *hmac);
 
 #endif
