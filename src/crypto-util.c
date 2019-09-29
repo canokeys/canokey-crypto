@@ -16,8 +16,7 @@ int memcmp_s(const uint8_t *p, const uint8_t *q, size_t len) {
       ++equal;
     else
       ++notequal;
-  if (equal + notequal != len)
-    raise_exception();
+  if (equal + notequal != len) raise_exception();
   if (equal == len)
     return 0;
   else

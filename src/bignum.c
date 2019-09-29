@@ -25,8 +25,8 @@
 
 #include "bignum.h"
 #include <assert.h>
-#include <string.h>
 #include <memzero.h>
+#include <string.h>
 
 /* big number library */
 
@@ -54,8 +54,7 @@
  */
 
 inline uint32_t read_be(const uint8_t *data) {
-  return (((uint32_t)data[0]) << 24) | (((uint32_t)data[1]) << 16) |
-         (((uint32_t)data[2]) << 8) | (((uint32_t)data[3]));
+  return (((uint32_t)data[0]) << 24) | (((uint32_t)data[1]) << 16) | (((uint32_t)data[2]) << 8) | (((uint32_t)data[3]));
 }
 
 inline void write_be(uint8_t *data, uint32_t x) {
@@ -66,8 +65,7 @@ inline void write_be(uint8_t *data, uint32_t x) {
 }
 
 inline uint32_t read_le(const uint8_t *data) {
-  return (((uint32_t)data[3]) << 24) | (((uint32_t)data[2]) << 16) |
-         (((uint32_t)data[1]) << 8) | (((uint32_t)data[0]));
+  return (((uint32_t)data[3]) << 24) | (((uint32_t)data[2]) << 16) | (((uint32_t)data[1]) << 8) | (((uint32_t)data[0]));
 }
 
 inline void write_le(uint8_t *data, uint32_t x) {
@@ -179,7 +177,7 @@ int bn_bitcount(const bignum256 *a) {
   return 0;
 }
 
-#define DIGITS 78  // log10(2 ^ 256)
+#define DIGITS 78 // log10(2 ^ 256)
 
 unsigned int bn_digitcount(const bignum256 *a) {
   bignum256 val;
@@ -265,8 +263,7 @@ int bn_is_equal(const bignum256 *a, const bignum256 *b) {
 // Assigns res = cond ? truecase : falsecase
 // assumes that cond is either 0 or 1.
 // function is constant time.
-void bn_cmov(bignum256 *res, int cond, const bignum256 *truecase,
-             const bignum256 *falsecase) {
+void bn_cmov(bignum256 *res, int cond, const bignum256 *truecase, const bignum256 *falsecase) {
   int i;
   uint32_t tmask = (uint32_t)-cond;
   uint32_t fmask = ~tmask;
@@ -282,8 +279,7 @@ void bn_cmov(bignum256 *res, int cond, const bignum256 *truecase,
 void bn_lshift(bignum256 *a) {
   int i;
   for (i = 8; i > 0; i--) {
-    a->val[i] =
-        ((a->val[i] << 1) & 0x3FFFFFFF) | ((a->val[i - 1] & 0x20000000) >> 29);
+    a->val[i] = ((a->val[i] << 1) & 0x3FFFFFFF) | ((a->val[i - 1] & 0x20000000) >> 29);
   }
   a->val[0] = (a->val[0] << 1) & 0x3FFFFFFF;
 }
@@ -299,19 +295,13 @@ void bn_rshift(bignum256 *a) {
 }
 
 // sets bit in bignum
-void bn_setbit(bignum256 *a, uint8_t bit) {
-  a->val[bit / 30] |= (1u << (bit % 30));
-}
+void bn_setbit(bignum256 *a, uint8_t bit) { a->val[bit / 30] |= (1u << (bit % 30)); }
 
 // clears bit in bignum
-void bn_clearbit(bignum256 *a, uint8_t bit) {
-  a->val[bit / 30] &= ~(1u << (bit % 30));
-}
+void bn_clearbit(bignum256 *a, uint8_t bit) { a->val[bit / 30] &= ~(1u << (bit % 30)); }
 
 // tests bit in bignum
-uint32_t bn_testbit(bignum256 *a, uint8_t bit) {
-  return a->val[bit / 30] & (1u << (bit % 30));
-}
+uint32_t bn_testbit(bignum256 *a, uint8_t bit) { return a->val[bit / 30] & (1u << (bit % 30)); }
 
 // a = b ^ c
 void bn_xor(bignum256 *a, const bignum256 *b, const bignum256 *c) {
@@ -356,17 +346,16 @@ void bn_mult_k(bignum256 *x, uint8_t k, const bignum256 *prime) {
 // compute x = x mod prime  by computing  x >= prime ? x - prime : x.
 // assumes x partly reduced, guarantees x fully reduced.
 void bn_mod(bignum256 *x, const bignum256 *prime) {
-  const int flag = bn_is_less(x, prime);  // x < prime
+  const int flag = bn_is_less(x, prime); // x < prime
   bignum256 temp;
-  bn_subtract(x, prime, &temp);  // temp = x - prime
+  bn_subtract(x, prime, &temp); // temp = x - prime
   bn_cmov(x, flag, x, &temp);
 }
 
 // auxiliary function for multiplication.
 // compute k * x as a 540 bit number in base 2^30 (normalized).
 // assumes that k and x are normalized.
-void bn_multiply_long(const bignum256 *k, const bignum256 *x,
-                      uint32_t res[18]) {
+void bn_multiply_long(const bignum256 *k, const bignum256 *x, uint32_t res[18]) {
   int i, j;
   uint64_t temp = 0;
 
@@ -396,8 +385,7 @@ void bn_multiply_long(const bignum256 *k, const bignum256 *x,
 // assumes i >= 8 and i <= 16
 // assumes    res normalized, res < 2^(30(i-7)) * 2 * prime
 // guarantees res normalized, res < 2^(30(i-8)) * 2 * prime
-void bn_multiply_reduce_step(uint32_t res[18], const bignum256 *prime,
-                             uint32_t i) {
+void bn_multiply_reduce_step(uint32_t res[18], const bignum256 *prime, uint32_t i) {
   // let k = i-8.
   // on entry:
   //   0 <= res < 2^(30k + 31) * prime
@@ -409,16 +397,14 @@ void bn_multiply_reduce_step(uint32_t res[18], const bignum256 *prime,
   assert(i >= 8 && i <= 16);
   uint32_t j;
   uint32_t coef = (res[i] >> 16) + (res[i + 1] << 14);
-  uint64_t temp =
-      0x2000000000000000ull + res[i - 8] - prime->val[0] * (uint64_t)coef;
+  uint64_t temp = 0x2000000000000000ull + res[i - 8] - prime->val[0] * (uint64_t)coef;
   assert(coef < 0x80000000u);
   res[i - 8] = temp & 0x3FFFFFFF;
   for (j = 1; j < 9; j++) {
     temp >>= 30;
     // Note: coeff * prime->val[j] <= (2^31-1) * (2^30-1)
     // Hence, this addition will not underflow.
-    temp +=
-        0x1FFFFFFF80000000ull + res[i - 8 + j] - prime->val[j] * (uint64_t)coef;
+    temp += 0x1FFFFFFF80000000ull + res[i - 8 + j] - prime->val[j] * (uint64_t)coef;
     res[i - 8 + j] = temp & 0x3FFFFFFF;
     // 0 <= temp < 2^61 + 2^30
   }
@@ -438,8 +424,7 @@ void bn_multiply_reduce_step(uint32_t res[18], const bignum256 *prime,
 // reduces x = res modulo prime.
 // assumes    res normalized, res < 2^270 * 2 * prime
 // guarantees x partly reduced, i.e., x < 2 * prime
-void bn_multiply_reduce(bignum256 *x, uint32_t res[18],
-                        const bignum256 *prime) {
+void bn_multiply_reduce(bignum256 *x, uint32_t res[18], const bignum256 *prime) {
   int i;
   // res = k * x is a normalized number (every limb < 2^30)
   // 0 <= res < 2^270 * 2 * prime.
@@ -696,7 +681,8 @@ void bn_inverse(bignum256 *x, const bignum256 *prime) {
     cmp = us.len1 - vr.len1;
     if (cmp == 0) {
       i = us.len1 - 1;
-      while (i >= 0 && us.a[i] == vr.a[i]) i--;
+      while (i >= 0 && us.a[i] == vr.a[i])
+        i--;
       // both are equal to 1 and we are done.
       if (i == -1) break;
       cmp = us.a[i] > vr.a[i] ? 1 : -1;
@@ -876,8 +862,7 @@ void bn_subi(bignum256 *a, uint32_t b, const bignum256 *prime) {
 // res = a - b mod prime.  More exactly res = a + (2*prime - b).
 // b must be a partly reduced number
 // result is normalized but not reduced.
-void bn_subtractmod(const bignum256 *a, const bignum256 *b, bignum256 *res,
-                    const bignum256 *prime) {
+void bn_subtractmod(const bignum256 *a, const bignum256 *b, bignum256 *res, const bignum256 *prime) {
   int i;
   uint32_t temp = 1;
   for (i = 0; i < 9; i++) {
@@ -944,9 +929,8 @@ void bn_divmod1000(bignum256 *a, uint32_t *r) {
   *r = rem;
 }
 
-size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix,
-                 unsigned int decimals, int exponent, bool trailing, char *out,
-                 size_t outlen) {
+size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix, unsigned int decimals, int exponent,
+                 bool trailing, char *out, size_t outlen) {
   // sanity check, 2**256 ~ 10**77; we should never need decimals/exponent
   // bigger than that
   if (decimals > 80 || exponent < -20 || exponent > 80) {
@@ -972,24 +956,24 @@ size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix,
   char *start = &out[prefixlen], *end = &out[outlen - suffixlen - 1];
   char *str = end;
 
-#define BN_FORMAT_PUSH_CHECKED(c) \
-  do {                            \
-    if (str == start) return 0;   \
-    *--str = (c);                 \
+#define BN_FORMAT_PUSH_CHECKED(c)                                                                                      \
+  do {                                                                                                                 \
+    if (str == start) return 0;                                                                                        \
+    *--str = (c);                                                                                                      \
   } while (0)
 
-#define BN_FORMAT_PUSH(n)                                       \
-  do {                                                          \
-    if (exponent < 0) {                                         \
-      exponent++;                                               \
-    } else {                                                    \
-      if ((n) > 0 || trailing || str != end || decimals <= 1) { \
-        BN_FORMAT_PUSH_CHECKED('0' + (n));                      \
-      }                                                         \
-      if (decimals > 0 && decimals-- == 1) {                    \
-        BN_FORMAT_PUSH_CHECKED('.');                            \
-      }                                                         \
-    }                                                           \
+#define BN_FORMAT_PUSH(n)                                                                                              \
+  do {                                                                                                                 \
+    if (exponent < 0) {                                                                                                \
+      exponent++;                                                                                                      \
+    } else {                                                                                                           \
+      if ((n) > 0 || trailing || str != end || decimals <= 1) {                                                        \
+        BN_FORMAT_PUSH_CHECKED('0' + (n));                                                                             \
+      }                                                                                                                \
+      if (decimals > 0 && decimals-- == 1) {                                                                           \
+        BN_FORMAT_PUSH_CHECKED('.');                                                                                   \
+      }                                                                                                                \
+    }                                                                                                                  \
   } while (0)
 
   bignum256 val;
@@ -1020,14 +1004,14 @@ size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix,
     bn_divmod1000(&val, &limb);
 
     switch (digits % 3) {
-      case 2:
-        BN_FORMAT_PUSH(limb % 10);
-        limb /= 10;
-        //-fallthrough
+    case 2:
+      BN_FORMAT_PUSH(limb % 10);
+      limb /= 10;
+      //-fallthrough
 
-      case 1:
-        BN_FORMAT_PUSH(limb % 10);
-        break;
+    case 1:
+      BN_FORMAT_PUSH(limb % 10);
+      break;
     }
   }
 

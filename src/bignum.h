@@ -86,9 +86,7 @@ int bn_is_zero(const bignum256 *a);
 
 void bn_one(bignum256 *a);
 
-static inline int bn_is_even(const bignum256 *a) {
-  return (a->val[0] & 1) == 0;
-}
+static inline int bn_is_even(const bignum256 *a) { return (a->val[0] & 1) == 0; }
 
 static inline int bn_is_odd(const bignum256 *a) { return (a->val[0] & 1) == 1; }
 
@@ -96,8 +94,7 @@ int bn_is_less(const bignum256 *a, const bignum256 *b);
 
 int bn_is_equal(const bignum256 *a, const bignum256 *b);
 
-void bn_cmov(bignum256 *res, int cond, const bignum256 *truecase,
-             const bignum256 *falsecase);
+void bn_cmov(bignum256 *res, int cond, const bignum256 *truecase, const bignum256 *falsecase);
 
 void bn_lshift(bignum256 *a);
 
@@ -135,8 +132,7 @@ void bn_addi(bignum256 *a, uint32_t b);
 
 void bn_subi(bignum256 *a, uint32_t b, const bignum256 *prime);
 
-void bn_subtractmod(const bignum256 *a, const bignum256 *b, bignum256 *res,
-                    const bignum256 *prime);
+void bn_subtractmod(const bignum256 *a, const bignum256 *b, bignum256 *res, const bignum256 *prime);
 
 void bn_subtract(const bignum256 *a, const bignum256 *b, bignum256 *res);
 
@@ -144,19 +140,15 @@ void bn_divmod58(bignum256 *a, uint32_t *r);
 
 void bn_divmod1000(bignum256 *a, uint32_t *r);
 
-size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix,
-                 unsigned int decimals, int exponent, bool trailing, char *out,
-                 size_t outlen);
+size_t bn_format(const bignum256 *amnt, const char *prefix, const char *suffix, unsigned int decimals, int exponent,
+                 bool trailing, char *out, size_t outlen);
 
-static inline size_t bn_format_uint64(uint64_t amount, const char *prefix,
-                                      const char *suffix, unsigned int decimals,
-                                      int exponent, bool trailing, char *out,
-                                      size_t outlen) {
+static inline size_t bn_format_uint64(uint64_t amount, const char *prefix, const char *suffix, unsigned int decimals,
+                                      int exponent, bool trailing, char *out, size_t outlen) {
   bignum256 amnt;
   bn_read_uint64(amount, &amnt);
 
-  return bn_format(&amnt, prefix, suffix, decimals, exponent, trailing, out,
-                   outlen);
+  return bn_format(&amnt, prefix, suffix, decimals, exponent, trailing, out, outlen);
 }
 
 #endif
