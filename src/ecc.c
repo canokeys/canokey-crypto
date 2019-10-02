@@ -72,20 +72,26 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
 }
 
 size_t ecdsa_sig2ansi(const uint8_t *input, uint8_t *output) {
-  uint8_t leading_zero_len1 = 0;
-  uint8_t leading_zero_len2 = 0;
+  int leading_zero_len1 = 0;
+  int leading_zero_len2 = 0;
   for (uint8_t i = 0; i < 32; ++i)
     if (input[i] == 0)
       ++leading_zero_len1;
-    else
+    else {
+      if (input[i] >= 0x80) --leading_zero_len1;
       break;
+    }
   for (uint8_t i = 32; i < 64; ++i)
     if (input[i] == 0)
       ++leading_zero_len2;
-    else
+    else {
+      if (input[i] >= 0x80) --leading_zero_len2;
       break;
-  uint8_t part1_len = input[0] < 0x80 ? (0x20 - leading_zero_len1) : 0x21;
-  uint8_t part2_len = input[32] < 0x80 ? (0x20 - leading_zero_len2) : 0x21;
+    }
+  uint8_t part1_len = 0x20 - leading_zero_len1;
+  uint8_t part2_len = 0x20 - leading_zero_len2;
+  if (leading_zero_len1 < 0) leading_zero_len1 = 0;
+  if (leading_zero_len2 < 0) leading_zero_len2 = 0;
   memmove(output + 6 + part1_len + (part2_len == 0x21 ? 1 : 0), input + 32 + leading_zero_len2, 32 - leading_zero_len2);
   memmove(output + 4 + (part1_len == 0x21 ? 1 : 0), input + leading_zero_len1, 32 - leading_zero_len1);
   output[0] = 0x30;
