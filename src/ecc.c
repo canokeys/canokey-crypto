@@ -9,8 +9,6 @@ __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key, c
   const ecdsa_curve *cur;
   if (curve == ECC_SECP256R1)
     cur = &nist256p1;
-  else if (curve == ECC_SECP256K1)
-    cur = &secp256k1;
   else
     return -1;
   if (ecdsa_sign_digest(cur, priv_key, digest, sig) < 0) return -1;
@@ -22,8 +20,6 @@ __attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, 
   const ecdsa_curve *cur;
   if (curve == ECC_SECP256R1)
     cur = &nist256p1;
-  else if (curve == ECC_SECP256K1)
-    cur = &secp256k1;
   else
     return -1;
   return ecdsa_verify_digest(cur, pub_key, sig, digest);
@@ -33,8 +29,6 @@ __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8
   const ecdsa_curve *cur;
   if (curve == ECC_SECP256R1)
     cur = &nist256p1;
-  else if (curve == ECC_SECP256K1)
-    cur = &secp256k1;
   else
     return -1;
   ecdsa_generate_keypair(cur, priv_key, pub_key);
@@ -45,8 +39,6 @@ __attribute__((weak)) int ecc_get_public_key(ECC_Curve curve, const uint8_t *pri
   const ecdsa_curve *cur;
   if (curve == ECC_SECP256R1)
     cur = &nist256p1;
-  else if (curve == ECC_SECP256K1)
-    cur = &secp256k1;
   else
     return -1;
   ecdsa_get_public_key(cur, priv_key, pub_key);
@@ -59,7 +51,7 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
   if (curve == ECC_SECP256R1)
     cur = &nist256p1;
   else
-    cur = &secp256k1;
+    return -1;
   curve_point pub;
   if (!ecdsa_read_pubkey(cur, receiver_pub_key, &pub)) return -1;
   bignum256 s;
