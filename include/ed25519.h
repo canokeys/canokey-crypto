@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+#define ED_KEY_SIZE 32
+#define ED_PUB_KEY_SIZE 32
+
 typedef unsigned char ed25519_signature[64];
 typedef unsigned char ed25519_public_key[32];
 typedef unsigned char ed25519_secret_key[32];
