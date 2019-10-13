@@ -539,16 +539,17 @@ void point_multiply(const ecdsa_curve *curve, const bignum256 *k, const curve_po
   memzero(&jres, sizeof(jres));
 }
 
+#if USE_PRECOMPUTED_CP
+
 // res = k * G
 // k must be a normalized number with 0 <= k < curve->order
-void scalar_multiply(const ecdsa_curve *curve, const bignum256 *k, curve_point *res) {
+void scalar_multiply(const ecdsa_curve *curve, const bignum256 *k,
+                     curve_point *res) {
   assert(bn_is_less(k, &curve->order));
 
-  int i, j;
-  static bignum256 a;
+  int i = {0}, j = {0};
   uint32_t is_even = (k->val[0] & 1) - 1;
-  uint32_t lowbits;
-  static jacobian_curve_point jres;
+  uint32_t lowbits = 0;
   const bignum256 *prime = &curve->prime;
 
   // is_even = 0xffffffff if k is even, 0 otherwise.
@@ -623,6 +624,15 @@ void scalar_multiply(const ecdsa_curve *curve, const bignum256 *k, curve_point *
   memzero(&a, sizeof(a));
   memzero(&jres, sizeof(jres));
 }
+
+#else
+
+void scalar_multiply(const ecdsa_curve *curve, const bignum256 *k,
+                     curve_point *res) {
+  point_multiply(curve, k, &curve->G, res);
+}
+
+#endif
 
 // uses secp256k1 curve
 // priv_key is a 32 byte big endian stored number

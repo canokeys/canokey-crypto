@@ -39,7 +39,10 @@ typedef struct {
   bignum256 order_half; // order of G divided by 2
   int a;                // coefficient 'a' of the elliptic curve
   bignum256 b;          // coefficient 'b' of the elliptic curve
+
+#if USE_PRECOMPUTED_CP
   const curve_point cp[64][8];
+#endif
 } ecdsa_curve;
 
 void point_copy(const curve_point *cp1, curve_point *cp2);

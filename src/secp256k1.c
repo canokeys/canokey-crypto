@@ -43,9 +43,13 @@ const ecdsa_curve secp256k1 = {
 
     /* a */ 0,
 
-    /* b */ {/*.val =*/{7}},
+    /* b */ {/*.val =*/{7}}
 
+#if USE_PRECOMPUTED_CP
+    ,
     /* cp */
     {
 #include "secp256k1.table"
-    }};
+    }
+#endif
+};
