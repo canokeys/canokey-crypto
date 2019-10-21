@@ -8,7 +8,7 @@
 #define ECC_PUB_KEY_SIZE 64
 
 typedef enum {
-  ECC_SECP256R1, // AKA NIST P-256
+  ECC_SECP256R1, // a.k.a., NIST P-256
   ECC_SECP256K1,
 } ECC_Curve;
 
@@ -17,6 +17,8 @@ int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key, const uint8_t *digest, 
 int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, const uint8_t *sig, const uint8_t *digest);
 
 int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key);
+
+int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_key);
 
 int ecc_get_public_key(ECC_Curve curve, const uint8_t *priv_key, uint8_t *pub_key);
 

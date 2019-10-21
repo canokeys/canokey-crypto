@@ -35,6 +35,15 @@ __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8
   return 0;
 }
 
+__attribute__((weak)) int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_key) {
+  const ecdsa_curve *cur;
+  if (curve == ECC_SECP256R1)
+    cur = &nist256p1;
+  else
+    return -1;
+  return ecdsa_verify_prikey(cur, priv_key);
+}
+
 __attribute__((weak)) int ecc_get_public_key(ECC_Curve curve, const uint8_t *priv_key, uint8_t *pub_key) {
   const ecdsa_curve *cur;
   if (curve == ECC_SECP256R1)

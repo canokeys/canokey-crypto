@@ -818,3 +818,9 @@ void ecdsa_generate_keypair(const ecdsa_curve *curve, uint8_t *priv_key, uint8_t
   ecdsa_get_public_key(curve, priv_key, pub_key);
   memzero(&k, sizeof(k));
 }
+
+int ecdsa_verify_prikey(const ecdsa_curve *curve, const uint8_t *priv_key) {
+  bignum256 s;
+  bn_read_be(priv_key, &s);
+  return bn_is_less(&s, &curve->prime);
+}

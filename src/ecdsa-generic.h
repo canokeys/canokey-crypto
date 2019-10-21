@@ -60,5 +60,6 @@ int ecdsa_validate_pubkey(const ecdsa_curve *curve, const curve_point *pub);
 void ecdsa_get_public_key(const ecdsa_curve *curve, const uint8_t *priv_key, uint8_t *pub_key);
 int ecdsa_verify_digest(const ecdsa_curve *curve, const uint8_t *pub_key, const uint8_t *sig, const uint8_t *digest);
 void ecdsa_generate_keypair(const ecdsa_curve *curve, uint8_t *priv_key, uint8_t *pub_key);
+int ecdsa_verify_prikey(const ecdsa_curve *curve, const uint8_t *priv_key);
 
 #endif
