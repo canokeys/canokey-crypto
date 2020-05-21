@@ -5,20 +5,39 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define RSA_N_BIT 2048u
+#define RSA_N_BIT_MAX 4096
 #define E_LENGTH 4
-#define N_LENGTH (RSA_N_BIT / 8)
-#define PQ_LENGTH (RSA_N_BIT / 16)
+#define PQ_LENGTH_MAX (RSA_N_BIT_MAX / 16)
 
 typedef struct {
+  uint16_t nbits;
   alignas(4) uint8_t e[E_LENGTH];
-  alignas(4) uint8_t p[PQ_LENGTH];
-  alignas(4) uint8_t q[PQ_LENGTH];
-  alignas(4) uint8_t n[N_LENGTH];
+  alignas(4) uint8_t p[PQ_LENGTH_MAX];
+  alignas(4) uint8_t q[PQ_LENGTH_MAX];
+  alignas(4) uint8_t dp[PQ_LENGTH_MAX];
+  alignas(4) uint8_t dq[PQ_LENGTH_MAX];
+  alignas(4) uint8_t qinv[PQ_LENGTH_MAX];
 } rsa_key_t;
 
-int rsa_generate_key(rsa_key_t *key);
-int rsa_complete_key(rsa_key_t *key);
+/**
+ * Generate a new RSA key. We always set e = 65537.
+ *
+ * @param key   The generated key.
+ * @param nbits The size of the public key in bits.
+ *
+ * @return 0 on success.
+ */
+int rsa_generate_key(rsa_key_t *key, uint16_t nbits);
+
+/**
+ * Compute the public key given a RSA private key.
+ *
+ * @param key The given private key.
+ * @param n   The corresponding public key.
+ *
+ * @return 0 on success.
+ */
+int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
 int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output);
 int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
 int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out);
