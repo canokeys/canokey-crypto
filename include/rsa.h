@@ -23,6 +23,7 @@ typedef struct {
  * Generate a new RSA key. We always set e = 65537.
  *
  * @param key   The generated key.
+ * @param nbits The size of the public key in bits.
  *
  * @return 0 on success.
  */
