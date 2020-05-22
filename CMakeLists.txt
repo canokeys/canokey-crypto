@@ -27,6 +27,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
 option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" OFF)
 if (ENABLE_CRYPTO_TESTS)
+    # for coverage
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+    else()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-usage --coverage")
+    endif()
+    
     add_definitions(-DTEST)
     find_package(CMocka CONFIG REQUIRED)
     include(AddCMockaTest)
