@@ -13,7 +13,7 @@ if (USE_MBEDCRYPTO)
     set(USE_CRYPTO_SUBMODULE ON CACHE BOOL "")
     set(ENABLE_PROGRAMS OFF CACHE BOOL "")
     set(ENABLE_TESTING OFF CACHE BOOL "") # disable mbedtls tests
-    add_subdirectory(mbed-crypto)
+    add_subdirectory(mbedtls)
 endif (USE_MBEDCRYPTO)
 
 file(GLOB SRC src/*.c ed25519-donna/*.c)
@@ -22,6 +22,7 @@ if (USE_MBEDCRYPTO)
     target_link_libraries(canokey-crypto mbedcrypto)
 endif (USE_MBEDCRYPTO)
 target_include_directories(canokey-crypto PUBLIC include)
+target_include_directories(canokey-crypto PRIVATE mbedtls/include)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
