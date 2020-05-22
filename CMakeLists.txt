@@ -27,6 +27,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
 option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" OFF)
 if (ENABLE_CRYPTO_TESTS)
+    add_definitions(-DTEST)
     find_package(CMocka CONFIG REQUIRED)
     include(AddCMockaTest)
     include(AddMockedTest)
