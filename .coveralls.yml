@@ -7,3 +7,4 @@ exclude:
   - ed25519-donna 
   - mbed-crypto 
   - test 
+  - build
