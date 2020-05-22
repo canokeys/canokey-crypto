@@ -1,0 +1,10 @@
+service_name: github
+build_root: build
+gcov_options: -lp
+exclude_lines_pattern:
+  - '.*/build/.+\.c'
+exclude:
+  - ed25519-donna 
+  - mbed-crypto 
+  - test 
+  - build

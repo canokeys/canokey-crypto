@@ -1,0 +1,36 @@
+name: tests
+on: [push, pull_request]
+
+jobs:
+  build_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Package Install
+      run: |
+        sudo apt update
+        sudo apt install gcc g++ cmake swig psmisc procps pcscd pcsc-tools yubico-piv-tool libassuan-dev libgcrypt20-dev libksba-dev libnpth0-dev opensc openssl openssh-server libpcsclite-dev libcmocka-dev python3-pip python3-setuptools python3-wheel
+        sudo pip install cpp-coveralls
+
+    - name: Check out code
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    
+    - name: Build for Test
+      run: |
+        mkdir build && pushd build
+        cmake .. -DENABLE_CRYPTO_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+        make -j2
+
+    - name: Smoking Tests
+      run: |
+        cd build
+        make test
+
+    - name: Upload the Test Coverage Stat
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TRAVIS_JOB_ID: ${{ env.GITHUB_RUN_ID }}
+      run: |
+        coveralls # options are read from .coveralls.yml
