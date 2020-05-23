@@ -28,9 +28,13 @@ jobs:
         cd build
         make test
 
-    - name: Upload the Test Coverage Stat
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TRAVIS_JOB_ID: ${{ env.GITHUB_RUN_ID }}
+    - name: Generate coverage
       run: |
-        coveralls # options are read from .coveralls.yml
+        mkdir coverage
+        find build/ -name '*.gcda' | grep -P '/(ed25519-donna|mbed-crypto|test|build)/' | xargs rm
+        lcov --base-directory . --directory . -c -o ./coverage/lcov.info
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
