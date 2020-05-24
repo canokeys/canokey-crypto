@@ -29,47 +29,80 @@ static int pkcs1_v15_remove_padding(const uint8_t *in, uint16_t in_len, uint8_t 
 }
 
 __attribute__((weak)) int rsa_generate_key(rsa_key_t *key, uint16_t nbits) {
+  int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
-  if (mbedtls_rsa_gen_key(&rsa, mbedtls_rnd, NULL, nbits, 65537) < 0) return -1;
+  if (mbedtls_rsa_gen_key(&rsa, mbedtls_rnd, NULL, nbits, 65537) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
   key->nbits = nbits;
   int pq_len = nbits / 16;
-  if (mbedtls_rsa_export_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) return -1;
+  if (mbedtls_rsa_export_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+cleanup:
+  mbedtls_rsa_free(&rsa);
 #else
   (void)key;
 #endif
-  return 0;
+  return ret;
 }
 
 __attribute__((weak)) int rsa_get_public_key(rsa_key_t *key, uint8_t *n) {
+  int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   int pq_len = key->nbits / 16;
-  if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) return -1;
-  if (mbedtls_rsa_complete(&rsa) < 0) return -1;
-  if (mbedtls_rsa_export_raw(&rsa, n, pq_len * 2, NULL, 0, NULL, 0, NULL, 0, NULL, 0) < 0) return -1;
+  if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+  if (mbedtls_rsa_complete(&rsa) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+  if (mbedtls_rsa_export_raw(&rsa, n, pq_len * 2, NULL, 0, NULL, 0, NULL, 0, NULL, 0) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+cleanup:
+  mbedtls_rsa_free(&rsa);
 #else
   (void)key;
 #endif
-  return 0;
+  return ret;
 }
 
 __attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output) {
+  int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
   int pq_len = key->nbits / 16;
-  if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) return -1;
-  if (mbedtls_rsa_complete(&rsa) < 0) return -1;
-  if (mbedtls_rsa_private(&rsa, mbedtls_rnd, NULL, input, output) < 0) return -1;
+  if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+  if (mbedtls_rsa_complete(&rsa) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+  if (mbedtls_rsa_private(&rsa, mbedtls_rnd, NULL, input, output) < 0) {
+    ret = -1;
+    goto cleanup;
+  }
+cleanup:
+  mbedtls_rsa_free(&rsa);
 #else
   (void)key;
   (void)input;
   (void)output;
 #endif
-  return 0;
+  return ret;
 }
 
 int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig) {
