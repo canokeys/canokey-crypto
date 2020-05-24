@@ -32,10 +32,12 @@ void x25519(curve25519_key mypublic, const curve25519_key secret,
 
   // load group
   mbedtls_ecp_group_load(&cv25519, MBEDTLS_ECP_DP_CURVE25519);
+
   // read base point
   mbedtls_mpi_read_binary(&base.X, b, 32);
   mbedtls_mpi_free(&base.Y);
   mbedtls_mpi_lset(&base.Z, 1);
+
   // read secret
   mbedtls_mpi_read_binary(&sk, e, 32);
 
