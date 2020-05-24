@@ -26,8 +26,8 @@ target_include_directories(canokey-crypto PRIVATE mbedtls/include)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
-option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" ON)
-#if (ENABLE_CRYPTO_TESTS)
+option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" OFF)
+if (ENABLE_CRYPTO_TESTS)
     # for coverage
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
@@ -40,4 +40,4 @@ option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" ON)
     include(AddMockedTest)
     add_subdirectory(test)
     enable_testing()
-#endif (ENABLE_CRYPTO_TESTS)
+endif (ENABLE_CRYPTO_TESTS)
