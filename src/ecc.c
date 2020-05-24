@@ -96,7 +96,7 @@ __attribute__((weak)) int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_
 
   mbedtls_ecp_group_load(&grp, grp_id[curve]);
   mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
-  return mbedtls_ecp_check_privkey(&grp, &d);
+  return mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
 #else
   (void)curve;
   (void)pub_key;

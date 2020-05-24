@@ -43,9 +43,9 @@ static void test_ecdsa_verify(void **state) {
 static void test_ecc_verify_private_key(void **state) {
   (void)state;
   uint8_t private_key[32] = {1};
-  assert_int_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 0);
+  assert_int_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 1);
   memset(private_key, 0xFF, 32);
-  assert_int_not_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 0);
+  assert_int_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 0);
 }
 
 static void test_ecc_get_public_key(void **state) {
