@@ -1,14 +1,9 @@
 #include <rand.h>
 #include <rsa.h>
 #include <string.h>
+
 #ifdef USE_MBEDCRYPTO
 #include <mbedtls/rsa.h>
-
-static int rnd(void *ctx, unsigned char *buf, size_t n) {
-  (void)ctx;
-  random_buffer(buf, n);
-  return 0;
-}
 #endif
 
 static int pkcs1_v15_add_padding(const void *in, uint16_t in_len, uint8_t *out, uint16_t out_len) {
@@ -37,7 +32,7 @@ __attribute__((weak)) int rsa_generate_key(rsa_key_t *key, uint16_t nbits) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
   mbedtls_rsa_init(&rsa, MBEDTLS_RSA_PKCS_V15, 0);
-  if (mbedtls_rsa_gen_key(&rsa, rnd, NULL, nbits, 65537) < 0) return -1;
+  if (mbedtls_rsa_gen_key(&rsa, mbedtls_rnd, NULL, nbits, 65537) < 0) return -1;
   key->nbits = nbits;
   int pq_len = nbits / 16;
   if (mbedtls_rsa_export_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) return -1;
@@ -68,7 +63,7 @@ __attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input, uint
   int pq_len = key->nbits / 16;
   if (mbedtls_rsa_import_raw(&rsa, NULL, 0, key->p, pq_len, key->q, pq_len, NULL, 0, key->e, 4) < 0) return -1;
   if (mbedtls_rsa_complete(&rsa) < 0) return -1;
-  if (mbedtls_rsa_private(&rsa, rnd, NULL, input, output) < 0) return -1;
+  if (mbedtls_rsa_private(&rsa, mbedtls_rnd, NULL, input, output) < 0) return -1;
 #else
   (void)key;
   (void)input;

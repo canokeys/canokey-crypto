@@ -55,3 +55,9 @@ void random_permute(char *str, size_t len) {
     str[i] = t;
   }
 }
+
+int mbedtls_rnd(void *ctx, unsigned char *buf, size_t n) {
+  (void)ctx;
+  random_buffer(buf, n);
+  return 0;
+}
