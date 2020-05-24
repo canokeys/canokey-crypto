@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 /**
- * The DES functions are all ECB-based.
+ * The DES functions all encrypt only one block.
  * To invoke them, you should use the functions provided in block-cipher.h
  */
 

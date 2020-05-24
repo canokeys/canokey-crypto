@@ -27,10 +27,37 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Get random 32-bit number
+ *
+ * @return random number
+ */
 uint32_t random32(void);
+
+/**
+ * Randomize the content of buffer
+ *
+ * @param buf Buffer
+ * @param len Length of buffer
+ */
 void random_buffer(uint8_t *buf, size_t len);
+
+/**
+ * Get a random number from uniform distribution of [0, n)
+ *
+ * @param n Random range
+ * @return random number
+ */
 uint32_t random_uniform(uint32_t n);
+
+/**
+ * Shuffle bytes randomly
+ *
+ * @param str Data
+ * @param len Length of data
+ */
 void random_permute(char *buf, size_t len);
+
 int mbedtls_rnd(void *ctx, unsigned char *buf, size_t n);
 
 #endif

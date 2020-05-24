@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 /**
- * The AES functions are all ECB-based.
+ * The AES functions all encrypt only one block.
  * To invoke them, you should use the functions provided in block-cipher.h
  */
 
