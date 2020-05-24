@@ -27,6 +27,16 @@ void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk);
 */
 void ed25519_sign(const unsigned char *m, size_t mlen, const ed25519_secret_key sk, const ed25519_public_key pk,
                   ed25519_signature rs);
-void curve25519_scalarmult(curve25519_key mypublic, const curve25519_key secret, const curve25519_key basepoint);
+
+/** 
+ * Calculate shared_secret = private_key * public_key, the second step of X25519
+ * 
+ * Note: X25519 spec uses little endian, but we use big endian here
+ * 
+ * @param shared_secret Shared secret in big endian
+ * @param private_key Private key in big endian
+ * @param public_key Public key in big endian
+*/
+void x25519(curve25519_key shared_secret, const curve25519_key private_key, const curve25519_key public_key);
 
 #endif // ED25519_H

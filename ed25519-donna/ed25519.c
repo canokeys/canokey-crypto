@@ -78,6 +78,7 @@ __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen, con
 
 #include "curve25519-donna-scalarmult-base.h"
 
+/*
 __attribute__((weak)) void curve25519_scalarmult(curve25519_key mypublic, const curve25519_key secret,
                                                  const curve25519_key basepoint) {
   curve25519_key e;
@@ -90,3 +91,4 @@ __attribute__((weak)) void curve25519_scalarmult(curve25519_key mypublic, const 
   e[31] |= 0x40;
   curve25519_scalarmult_donna(mypublic, e, basepoint);
 }
+*/

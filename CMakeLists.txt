@@ -30,7 +30,7 @@ option(ENABLE_CRYPTO_TESTS "Perform unit tests after build" OFF)
 if (ENABLE_CRYPTO_TESTS)
     # for coverage
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
     else()
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-usage --coverage")
     endif()
