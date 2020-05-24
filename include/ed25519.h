@@ -27,6 +27,6 @@ void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk);
 */
 void ed25519_sign(const unsigned char *m, size_t mlen, const ed25519_secret_key sk, const ed25519_public_key pk,
                   ed25519_signature rs);
-void curve25519_scalarmult(curve25519_key mypublic, const curve25519_key secret, const curve25519_key basepoint);
+void x25519(curve25519_key mypublic, const curve25519_key secret, const curve25519_key basepoint);
 
 #endif // ED25519_H

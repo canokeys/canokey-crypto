@@ -3,7 +3,7 @@
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
 
-void curve25519_scalarmult(curve25519_key mypublic, const curve25519_key secret,
+void x25519(curve25519_key mypublic, const curve25519_key secret,
                            const curve25519_key basepoint) {
   mbedtls_ecp_point base;
   mbedtls_ecp_point public;

@@ -67,7 +67,7 @@ static void test_cv25519_decrypt(void **state) {
       0xe0, 0x7e, 0x21, 0xc9, 0x47, 0xd1, 0x9e, 0x33, 0x76, 0xf0, 0x9b, 0x3c, 0x1e, 0x16, 0x17, 0x42,
   };
 
-  curve25519_scalarmult(out, sk, input);
+  x25519(out, sk, input);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
