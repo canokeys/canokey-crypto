@@ -57,5 +57,5 @@ void x25519(curve25519_key mypublic, const curve25519_key secret,
   mbedtls_ecp_point_free(&base);
   mbedtls_ecp_point_free(&public);
   mbedtls_ecp_group_free(&cv25519);
-  mbedtls_mpi_free(&base.Y);
+  mbedtls_mpi_free(&sk);
 }
