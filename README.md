@@ -6,6 +6,6 @@ The default implementations are mainly used to test Canokey on PC, which are wea
 
 ## Ref:
 
-- Mbed Crypto: https://github.com/ARMmbed/mbed-crypto
+- Mbed TLS: https://github.com/ARMmbed/mbedtls
 - SHA2: http://www.aarongifford.com/computers/sha.html
 - SHA3: https://github.com/rhash/RHash
