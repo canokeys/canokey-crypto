@@ -28,6 +28,8 @@ __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8
   mbedtls_mpi_write_binary(&keypair.d, priv_key, key_size[curve]);
   mbedtls_mpi_write_binary(&keypair.Q.X, pub_key, key_size[curve]);
   mbedtls_mpi_write_binary(&keypair.Q.Y, pub_key + key_size[curve], key_size[curve]);
+
+  mbedtls_ecp_keypair_free(&keypair);
 #else
   (void)curve;
   (void)priv_key;
@@ -49,6 +51,11 @@ __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key, c
   mbedtls_ecdsa_sign(&grp, &r, &s, &d, digest, key_size[curve], mbedtls_rnd, NULL);
   mbedtls_mpi_write_binary(&r, sig, key_size[curve]);
   mbedtls_mpi_write_binary(&s, sig + key_size[curve], key_size[curve]);
+
+  mbedtls_mpi_free(&r);
+  mbedtls_mpi_free(&s);
+  mbedtls_mpi_free(&d);
+  mbedtls_ecp_group_free(&grp);
 #else
   (void)curve;
   (void)priv_key;
@@ -75,7 +82,13 @@ __attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, 
   mbedtls_mpi_lset(&pnt.Z, 1);
   mbedtls_mpi_read_binary(&r, sig, key_size[curve]);
   mbedtls_mpi_read_binary(&s, sig + key_size[curve], key_size[curve]);
-  return mbedtls_ecdsa_verify(&grp, digest, key_size[curve], &pnt, &r, &s);
+  int res = mbedtls_ecdsa_verify(&grp, digest, key_size[curve], &pnt, &r, &s);
+
+  mbedtls_mpi_free(&r);
+  mbedtls_mpi_free(&s);
+  mbedtls_ecp_group_free(&grp);
+  mbedtls_ecp_point_free(&pnt);
+  return res;
 #else
   (void)curve;
   (void)pub_key;
@@ -94,7 +107,11 @@ __attribute__((weak)) int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_
 
   mbedtls_ecp_group_load(&grp, grp_id[curve]);
   mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
-  return mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
+  int res = mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
+
+  mbedtls_mpi_free(&d);
+  mbedtls_ecp_group_free(&grp);
+  return res;
 #else
   (void)curve;
   (void)priv_key;
@@ -116,6 +133,10 @@ __attribute__((weak)) int ecc_get_public_key(ECC_Curve curve, const uint8_t *pri
   mbedtls_ecp_mul(&grp, &pnt, &d, &grp.G, mbedtls_rnd, NULL);
   mbedtls_mpi_write_binary(&pnt.X, pub_key, key_size[curve]);
   mbedtls_mpi_write_binary(&pnt.Y, pub_key + key_size[curve], key_size[curve]);
+
+  mbedtls_mpi_free(&d);
+  mbedtls_ecp_group_free(&grp);
+  mbedtls_ecp_point_free(&pnt);
 #else
   (void)curve;
   (void)priv_key;
@@ -142,6 +163,10 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
   mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL);
   mbedtls_mpi_write_binary(&pnt.X, out, key_size[curve]);
   mbedtls_mpi_write_binary(&pnt.Y, out + key_size[curve], key_size[curve]);
+
+  mbedtls_mpi_free(&d);
+  mbedtls_ecp_group_free(&grp);
+  mbedtls_ecp_point_free(&pnt);
 #else
   (void)curve;
   (void)priv_key;
