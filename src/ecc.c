@@ -176,36 +176,36 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
   return 0;
 }
 
-size_t ecdsa_sig2ansi(const uint8_t *input, uint8_t *output) {
+size_t ecdsa_sig2ansi(uint8_t key_len, const uint8_t *input, uint8_t *output) {
   int leading_zero_len1 = 0;
   int leading_zero_len2 = 0;
-  for (uint8_t i = 0; i < 32; ++i)
+  for (uint8_t i = 0; i < key_len; ++i)
     if (input[i] == 0)
       ++leading_zero_len1;
     else {
       if (input[i] >= 0x80) --leading_zero_len1;
       break;
     }
-  for (uint8_t i = 32; i < 64; ++i)
+  for (uint8_t i = key_len; i < key_len * 2; ++i)
     if (input[i] == 0)
       ++leading_zero_len2;
     else {
       if (input[i] >= 0x80) --leading_zero_len2;
       break;
     }
-  uint8_t part1_len = 0x20 - leading_zero_len1;
-  uint8_t part2_len = 0x20 - leading_zero_len2;
+  uint8_t part1_len = key_len - leading_zero_len1;
+  uint8_t part2_len = key_len - leading_zero_len2;
   if (leading_zero_len1 < 0) leading_zero_len1 = 0;
   if (leading_zero_len2 < 0) leading_zero_len2 = 0;
-  memmove(output + 6 + part1_len + (part2_len == 0x21 ? 1 : 0), input + 32 + leading_zero_len2, 32 - leading_zero_len2);
-  memmove(output + 4 + (part1_len == 0x21 ? 1 : 0), input + leading_zero_len1, 32 - leading_zero_len1);
+  memmove(output + 6 + part1_len + (part2_len == key_len + 1 ? 1 : 0), input + key_len + leading_zero_len2, key_len - leading_zero_len2);
+  memmove(output + 4 + (part1_len == key_len + 1 ? 1 : 0), input + leading_zero_len1, key_len - leading_zero_len1);
   output[0] = 0x30;
   output[1] = part1_len + part2_len + 4;
   output[2] = 0x02;
   output[3] = part1_len;
-  if (part1_len == 0x21) output[4] = 0;
+  if (part1_len == key_len + 1) output[4] = 0;
   output[4 + part1_len] = 0x02;
   output[5 + part1_len] = part2_len;
-  if (part2_len == 0x21) output[6 + part1_len] = 0;
+  if (part2_len == key_len + 1) output[6 + part1_len] = 0;
   return 6 + part1_len + part2_len;
 }

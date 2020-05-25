@@ -81,11 +81,13 @@ int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key, const uint8_t *receiv
 /**
  * Convert r,s signature to ANSI X9.62 format
  *
- * @param input 64 bytes signature
- * @param output ANSI X9.62 format. The buffer should be at least 70 bytes.
- * The buffer can be identical to the input.
+ * @param key_len Length of the key
+ * @param input   The original signature
+ * @param output  ANSI X9.62 format. The buffer should be at least 2 * key_size + 6 bytes. The buffer can be identical
+ * to the input.
+ *
  * @return Length of signature
  */
-size_t ecdsa_sig2ansi(const uint8_t *input, uint8_t *output);
+size_t ecdsa_sig2ansi(uint8_t key_len, const uint8_t *input, uint8_t *output);
 
 #endif

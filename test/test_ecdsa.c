@@ -89,7 +89,7 @@ static void test_sig2ansi(void **state) {
                            0xc1, 0x98, 0xbb, 0x7e, 0x3d, 0xe1, 0x8d, 0x9a, 0x02, 0x1f, 0x18, 0x9b, 0x39, 0x8c,
                            0x56, 0xe9, 0x95, 0xcd, 0xf5, 0xde, 0xa3, 0x70, 0xf6, 0xc3, 0x53, 0xd2, 0xa4, 0xd2,
                            0x53, 0x23, 0xb2, 0xa4, 0x4a, 0xca, 0xc1, 0xad, 0x5a, 0x15, 0xe1, 0x73, 0xf6};
-  size_t len = ecdsa_sig2ansi(input, input);
+  size_t len = ecdsa_sig2ansi(32, input, input);
   assert_int_equal(len, 69);
   for (int i = 0; i != len; ++i) {
     assert_int_equal(input[i], expected[i]);
@@ -105,7 +105,7 @@ static void test_sig2ansi(void **state) {
          "\x4c\x15\x8a\x2f\x3a\x05\x18\x67\x44\x21\x74\x92\x39\x02\x20\x1e\x0b\x89\x52\x09\xce\x24\xdf\x74"
          "\x36\xd8\x6c\xe6\x34\xcf\x65\x71\x89\x81\x51\x20\x20\xd6\x4d\xa3\x30\xbc\x65\x4a\xe4\xf6\xde",
          71);
-  len = ecdsa_sig2ansi(input, input);
+  len = ecdsa_sig2ansi(32, input, input);
   assert_int_equal(len, 71);
   for (int i = 0; i != len; ++i) {
     assert_int_equal(input[i], expected[i]);
@@ -121,7 +121,7 @@ static void test_sig2ansi(void **state) {
          "\x4c\x15\x8a\x2f\x3a\x05\x18\x67\x44\x21\x74\x92\x39\x02\x20\x1e\x0b\x89\x52\x09\xce\x24\xdf\x74"
          "\x36\xd8\x6c\xe6\x34\xcf\x65\x71\x89\x81\x51\x20\x20\xd6\x4d\xa3\x30\xbc\x65\x4a\xe4\xf6\xde",
          70);
-  len = ecdsa_sig2ansi(input, input);
+  len = ecdsa_sig2ansi(32, input, input);
   assert_int_equal(len, 70);
   for (int i = 0; i != len; ++i) {
     assert_int_equal(input[i], expected[i]);
@@ -137,7 +137,7 @@ static void test_sig2ansi(void **state) {
          "\x4c\x15\x8a\x2f\x3a\x05\x18\x67\x44\x21\x74\x92\x39\x02\x20\x00\xbb\x89\x52\x09\xce\x24\xdf\x74"
          "\x36\xd8\x6c\xe6\x34\xcf\x65\x71\x89\x81\x51\x20\x20\xd6\x4d\xa3\x30\xbc\x65\x4a\xe4\xf6\xde",
          70);
-  len = ecdsa_sig2ansi(input, input);
+  len = ecdsa_sig2ansi(32, input, input);
   assert_int_equal(len, 70);
   for (int i = 0; i != len; ++i) {
     assert_int_equal(input[i], expected[i]);
