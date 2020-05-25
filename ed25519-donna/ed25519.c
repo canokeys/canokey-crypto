@@ -28,18 +28,31 @@ static void ed25519_hram(hash_512bits hram, const ed25519_signature RS, const ed
   ed25519_hash_final(&ctx, hram);
 }
 
+/*
 __attribute__((weak)) void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk) {
   bignum256modm a;
   ge25519 ALIGN(16) A;
   hash_512bits extsk;
 
-  /* A = aB */
   ed25519_extsk(extsk, sk);
+  printf("sha512: ");
+  for (int i = 0; i < 64;i++)
+    printf("%02X", extsk[i]);
+  printf("\n");
 
   expand256_modm(a, extsk, 32);
+  printf("k: ");
+  for (int i = 0; i < 9;i++)
+    printf("%08X", a[i]);
+  printf("\n");
   ge25519_scalarmult_base_niels(&A, ge25519_niels_base_multiples, a);
   ge25519_pack(pk, &A);
+  printf("pk: ");
+  for (int i = 0; i < 32;i++)
+    printf("%02X", pk[i]);
+  printf("\n");
 }
+*/
 
 __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen, const ed25519_secret_key sk,
                                         const ed25519_public_key pk, ed25519_signature RS) {

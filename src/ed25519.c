@@ -1,47 +1,42 @@
 #include "ed25519.h"
 #include "rand.h"
+#include "sha.h"
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
 
-void x25519(curve25519_key mypublic, const curve25519_key secret,
-                           const curve25519_key basepoint) {
-  mbedtls_ecp_point base;
-  mbedtls_ecp_point public;
-  mbedtls_ecp_group cv25519;
-  mbedtls_mpi sk;
+void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk) {
+  // calc sha512 of sk
+  uint8_t digest[SHA512_DIGEST_LENGTH];
+  sha512_raw(sk, sizeof(ed25519_secret_key), digest);
 
-  // init
-  mbedtls_ecp_point_init(&base);
-  mbedtls_ecp_point_init(&public);
-  mbedtls_ecp_group_init(&cv25519);
-  mbedtls_mpi_init(&sk);
+  // normalize
+  digest[0] &= 248;
+  digest[31] &= 127;
+  digest[31] |= 64;
 
-  // load group
-  mbedtls_ecp_group_load(&cv25519, MBEDTLS_ECP_DP_CURVE25519);
+  // init ed25519 group
+  mbedtls_ecp_group ed25519;
+  mbedtls_ecp_group_init(&ed25519);
+  mbedtls_ecp_group_load(&ed25519, MBEDTLS_ECP_DP_ED25519);
 
-  // read base point
-  mbedtls_mpi_read_binary(&base.X, basepoint, 32);
-  mbedtls_mpi_free(&base.Y);
-  mbedtls_mpi_lset(&base.Z, 1);
+  // load digest
+  mbedtls_mpi s;
+  mbedtls_mpi_init(&s);
+  mbedtls_mpi_read_binary_le(&s, digest, 32);
 
-  // read secret
-  mbedtls_mpi_read_binary(&sk, secret, 32);
-
-  // multiple scalar
-  mbedtls_ecp_mul(&cv25519, &public, &sk, &base, mbedtls_rnd, NULL);
+  // P = s*B
+  mbedtls_ecp_point p;
+  mbedtls_ecp_point_init(&p);
+  mbedtls_ecp_mul(&ed25519, &p, &s, &ed25519.G, mbedtls_rnd, NULL);
 
   // write result
-  mbedtls_mpi_write_binary(&public.X, mypublic, 32);
-
-  mbedtls_ecp_point_free(&base);
-  mbedtls_ecp_point_free(&public);
-  mbedtls_ecp_group_free(&cv25519);
-  mbedtls_mpi_free(&sk);
-}
+  size_t output_len;
+  mbedtls_ecp_point_write_binary(&ed25519, &p, MBEDTLS_ECP_PF_COMPRESSED,
+                                 &output_len, pk, sizeof(ed25519_public_key));
 
 
-void curve25519_key_from_random(curve25519_key private_key) {
-  private_key[31] &= 0xf8;
-  private_key[0] &= 0x7f;
-  private_key[0] |= 0x40;
+  // cleanup
+  mbedtls_ecp_group_free(&ed25519);
+  mbedtls_mpi_free(&s);
+  mbedtls_ecp_point_free(&p);
 }
