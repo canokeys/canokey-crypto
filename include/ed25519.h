@@ -34,9 +34,16 @@ void ed25519_sign(const unsigned char *m, size_t mlen, const ed25519_secret_key 
  * Note: X25519 spec uses little endian, but we use big endian here
  * 
  * @param shared_secret Shared secret in big endian
- * @param private_key Private key in big endian
+ * @param private_key Valid private key in big endian
  * @param public_key Public key in big endian
 */
 void x25519(curve25519_key shared_secret, const curve25519_key private_key, const curve25519_key public_key);
+
+/**
+ * Create a valid Curve25519 private key from random numbers
+ * 
+ * @param private_key Input & output of private key in big endian
+ */
+void curve25519_key_from_random(curve25519_key private_key);
 
 #endif // ED25519_H
