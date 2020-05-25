@@ -28,7 +28,7 @@ __attribute__((weak)) void x25519(curve25519_key shared_secret, const curve25519
   // read secret
   mbedtls_mpi_read_binary(&sk, private_key, 32);
 
-  // multiple scalar
+  // multiply scalar
   mbedtls_ecp_mul(&cv25519, &public, &sk, &base, mbedtls_rnd, NULL);
 
   // write result
@@ -38,6 +38,10 @@ __attribute__((weak)) void x25519(curve25519_key shared_secret, const curve25519
   mbedtls_ecp_point_free(&public);
   mbedtls_ecp_group_free(&cv25519);
   mbedtls_mpi_free(&sk);
+#else
+  (void)shared_secret;
+  (void)private_key;
+  (void)public_key;
 #endif
 }
 

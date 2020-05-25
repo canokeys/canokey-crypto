@@ -43,6 +43,9 @@ __attribute__((weak)) void ed25519_publickey(const ed25519_secret_key sk,
   mbedtls_ecp_group_free(&ed25519);
   mbedtls_mpi_free(&s);
   mbedtls_ecp_point_free(&p);
+#else
+  (void)sk;
+  (void)pk;
 #endif
 }
 
@@ -125,5 +128,11 @@ __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen,
   mbedtls_ecp_point_free(&p);
   mbedtls_mpi_free(&k);
   mbedtls_mpi_free(&s);
+#else
+  (void)m;
+  (void)mlen;
+  (void)sk;
+  (void)pk;
+  (void)RS;
 #endif
 }
