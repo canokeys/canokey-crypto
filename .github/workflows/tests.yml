@@ -38,3 +38,9 @@ jobs:
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build without MbedTLS
+      run: |
+        pushd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_MBEDCRYPTO=OFF
+        make -j2
