@@ -1,0 +1,1186 @@
+From a29a565d28b7a51af7f792d3e841f186dba1edf5 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 00:48:00 +0200
+Subject: [PATCH 1/6] Add edwards25519 curve as defined in RFC7748
+
+Largely inspired by the curve25519 definition.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ include/mbedtls/config.h     |  1 +
+ include/mbedtls/ecp.h        |  1 +
+ library/ecp_curves.c         | 54 ++++++++++++++++++++++++++++++++++--
+ library/version_features.c   |  3 ++
+ programs/test/query_config.c |  8 ++++++
+ 5 files changed, 64 insertions(+), 3 deletions(-)
+
+diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
+index 901e26d897..e6efade83e 100644
+--- a/include/mbedtls/config.h
++++ b/include/mbedtls/config.h
+@@ -769,6 +769,7 @@
+ #define MBEDTLS_ECP_DP_BP512R1_ENABLED
+ #define MBEDTLS_ECP_DP_CURVE25519_ENABLED
+ #define MBEDTLS_ECP_DP_CURVE448_ENABLED
++#define MBEDTLS_ECP_DP_ED25519_ENABLED
+ 
+ /**
+  * \def MBEDTLS_ECP_NIST_OPTIM
+diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
+index 4c05b4fd0a..75b1680f93 100644
+--- a/include/mbedtls/ecp.h
++++ b/include/mbedtls/ecp.h
+@@ -90,6 +90,7 @@ typedef enum
+     MBEDTLS_ECP_DP_SECP224K1,      /*!< Domain parameters for 224-bit "Koblitz" curve. */
+     MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
+     MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
++    MBEDTLS_ECP_DP_ED25519,        /*!< Domain parameters for Ed25519. */
+ } mbedtls_ecp_group_id;
+ 
+ /**
+diff --git a/library/ecp_curves.c b/library/ecp_curves.c
+index a24a50c031..ab1fc75e60 100644
+--- a/library/ecp_curves.c
++++ b/library/ecp_curves.c
+@@ -632,7 +632,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
+ #endif /* MBEDTLS_ECP_NIST_OPTIM */
+ 
+ /* Additional forward declarations */
+-#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED)
++#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
+ static int ecp_mod_p255( mbedtls_mpi * );
+ #endif
+ #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
+@@ -749,6 +749,48 @@ static int ecp_use_curve448( mbedtls_ecp_group *grp )
+ }
+ #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
++/*
++ * Specialized function for creating the Ed25519 group
++ */
++static int ecp_use_ed25519( mbedtls_ecp_group *grp )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++
++    /* P = 2^255 - 19 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &grp->P, 1 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_shift_l( &grp->P, 255 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &grp->P, &grp->P, 19 ) );
++    grp->pbits = mbedtls_mpi_bitlen( &grp->P );
++
++    /* N = 2^252 + 27742317777372353535851937790883648493 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->N, 16,
++                                              "14DEF9DEA2F79CD65812631A5CF5D3ED" ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_set_bit( &grp->N, 252, 1 ) );
++
++    /* A = -1 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &grp->A, &grp->P, 1 ) );
++
++    /* B = -121665/121666 (actually d of edwards25519) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->B, 16,
++                                              "52036CEE2B6FFE738CC740797779E89800700A4D4141D8AB75EB4DCA135978A3" ) );
++
++    /* (X(P),Y(P)) of edwards25519 in RFC7748. Also set Z so that
++     * projective coordinates can be used. */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->G.X, 16,
++                                              "216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A" ) ) ;
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->G.Y, 16,
++                                              "6666666666666666666666666666666666666666666666666666666666666658" ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &grp->G.Z, 1 ) );
++
++cleanup:
++    if( ret != 0 )
++        mbedtls_ecp_group_free( grp );
++
++    return( ret );
++}
++#endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
++
+ /*
+  * Set a group using well-known domain parameters
+  */
+@@ -836,6 +878,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
+             return( ecp_use_curve448( grp ) );
+ #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
++        case MBEDTLS_ECP_DP_ED25519:
++            grp->modp = ecp_mod_p255;
++            return( ecp_use_ed25519( grp ) );
++#endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
++
+         default:
+             grp->id = MBEDTLS_ECP_DP_NONE;
+             return( MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE );
+@@ -1224,7 +1272,7 @@ static int ecp_mod_p521( mbedtls_mpi *N )
+ 
+ #endif /* MBEDTLS_ECP_NIST_OPTIM */
+ 
+-#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED)
++#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
+ 
+ /* Size of p255 in terms of mbedtls_mpi_uint */
+ #define P255_WIDTH      ( 255 / 8 / sizeof( mbedtls_mpi_uint ) + 1 )
+@@ -1266,7 +1314,7 @@ static int ecp_mod_p255( mbedtls_mpi *N )
+ cleanup:
+     return( ret );
+ }
+-#endif /* MBEDTLS_ECP_DP_CURVE25519_ENABLED */
++#endif /* MBEDTLS_ECP_DP_CURVE25519_ENABLED || MBEDTLS_ECP_DP_ED25519_ENABLED */
+ 
+ #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
+ 
+diff --git a/library/version_features.c b/library/version_features.c
+index d16ad1bacd..72e61e18e6 100644
+--- a/library/version_features.c
++++ b/library/version_features.c
+@@ -351,6 +351,9 @@ static const char * const features[] = {
+ #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
+     "MBEDTLS_ECP_DP_CURVE448_ENABLED",
+ #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
++#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
++    "MBEDTLS_ECP_DP_ED25519_ENABLED",
++#endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
+ #if defined(MBEDTLS_ECP_NIST_OPTIM)
+     "MBEDTLS_ECP_NIST_OPTIM",
+ #endif /* MBEDTLS_ECP_NIST_OPTIM */
+diff --git a/programs/test/query_config.c b/programs/test/query_config.c
+index bd3f638a7c..9fcaa1f9f3 100644
+--- a/programs/test/query_config.c
++++ b/programs/test/query_config.c
+@@ -978,6 +978,14 @@ int query_config( const char *config )
+     }
+ #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
++    if( strcmp( "MBEDTLS_ECP_DP_ED25519_ENABLED", config ) == 0 )
++    {
++        MACRO_EXPANSION_TO_STR( MBEDTLS_ECP_DP_ED25519_ENABLED );
++        return( 0 );
++    }
++#endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
++
+ #if defined(MBEDTLS_ECP_NIST_OPTIM)
+     if( strcmp( "MBEDTLS_ECP_NIST_OPTIM", config ) == 0 )
+     {
+
+From d949b061fa5ebe491c1a437ea513c3cf07d0a5bf Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 00:48:00 +0200
+Subject: [PATCH 2/6] Add edwards448 curve as defined in RFC7748
+
+Largely inspired by the curve448 definition.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ include/mbedtls/config.h     |  1 +
+ include/mbedtls/ecp.h        |  1 +
+ library/ecp_curves.c         | 60 ++++++++++++++++++++++++++++++++++--
+ library/version_features.c   |  3 ++
+ programs/test/query_config.c |  8 +++++
+ 5 files changed, 70 insertions(+), 3 deletions(-)
+
+diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
+index e6efade83e..7d9e2cbc14 100644
+--- a/include/mbedtls/config.h
++++ b/include/mbedtls/config.h
+@@ -770,6 +770,7 @@
+ #define MBEDTLS_ECP_DP_CURVE25519_ENABLED
+ #define MBEDTLS_ECP_DP_CURVE448_ENABLED
+ #define MBEDTLS_ECP_DP_ED25519_ENABLED
++#define MBEDTLS_ECP_DP_ED448_ENABLED
+ 
+ /**
+  * \def MBEDTLS_ECP_NIST_OPTIM
+diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
+index 75b1680f93..8d3d6d638a 100644
+--- a/include/mbedtls/ecp.h
++++ b/include/mbedtls/ecp.h
+@@ -91,6 +91,7 @@ typedef enum
+     MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
+     MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
+     MBEDTLS_ECP_DP_ED25519,        /*!< Domain parameters for Ed25519. */
++    MBEDTLS_ECP_DP_ED448,          /*!< Domain parameters for Ed448. */
+ } mbedtls_ecp_group_id;
+ 
+ /**
+diff --git a/library/ecp_curves.c b/library/ecp_curves.c
+index ab1fc75e60..08552ec264 100644
+--- a/library/ecp_curves.c
++++ b/library/ecp_curves.c
+@@ -635,7 +635,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
+ #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
+ static int ecp_mod_p255( mbedtls_mpi * );
+ #endif
+-#if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
++#if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED) || defined(MBEDTLS_ECP_DP_ED448_ENABLED)
+ static int ecp_mod_p448( mbedtls_mpi * );
+ #endif
+ #if defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED)
+@@ -791,6 +791,54 @@ static int ecp_use_ed25519( mbedtls_ecp_group *grp )
+ }
+ #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED448_ENABLED)
++/*
++ * Specialized function for creating the Ed448 group
++ */
++static int ecp_use_ed448( mbedtls_ecp_group *grp )
++{
++    mbedtls_mpi Ns;
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++
++    mbedtls_mpi_init( &Ns );
++
++    /* P = 2^448 - 2^224 - 1 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &grp->P, 1 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_shift_l( &grp->P, 224 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &grp->P, &grp->P, 1 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_shift_l( &grp->P, 224 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &grp->P, &grp->P, 1 ) );
++    grp->pbits = mbedtls_mpi_bitlen( &grp->P );
++
++    /* N = 2^446 - 13818066809895115352007386748515426880336692474882178609894547503885 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_set_bit( &grp->N, 446, 1 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &Ns, 16,
++                                              "8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D" ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mpi( &grp->N, &grp->N, &Ns ) );
++
++    /* A = 1 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &grp->A, 1 ) );
++
++    /* B = -39081 (actually d of edwards448) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &grp->B, &grp->P, 39081 ) );
++
++    /* (X(P),Y(P)) of edwards448 in RFC7748. Also set Z so that
++     * projective coordinates can be used. */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->G.X, 16,
++                                              "4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E" ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &grp->G.Y, 16,
++                                              "693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14" ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &grp->G.Z, 1 ) );
++
++cleanup:
++    mbedtls_mpi_free( &Ns );
++    if( ret != 0 )
++        mbedtls_ecp_group_free( grp );
++
++    return( ret );
++}
++#endif /* MBEDTLS_ECP_DP_ED448_ENABLED */
++
+ /*
+  * Set a group using well-known domain parameters
+  */
+@@ -884,6 +932,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
+             return( ecp_use_ed25519( grp ) );
+ #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED448_ENABLED)
++        case MBEDTLS_ECP_DP_ED448:
++            grp->modp = ecp_mod_p448;
++            return( ecp_use_ed448( grp ) );
++#endif /* MBEDTLS_ECP_DP_ED448_ENABLED */
++
+         default:
+             grp->id = MBEDTLS_ECP_DP_NONE;
+             return( MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE );
+@@ -1316,7 +1370,7 @@ static int ecp_mod_p255( mbedtls_mpi *N )
+ }
+ #endif /* MBEDTLS_ECP_DP_CURVE25519_ENABLED || MBEDTLS_ECP_DP_ED25519_ENABLED */
+ 
+-#if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
++#if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED) || defined(MBEDTLS_ECP_DP_ED448_ENABLED)
+ 
+ /* Size of p448 in terms of mbedtls_mpi_uint */
+ #define P448_WIDTH      ( 448 / 8 / sizeof( mbedtls_mpi_uint ) )
+@@ -1385,7 +1439,7 @@ static int ecp_mod_p448( mbedtls_mpi *N )
+ cleanup:
+     return( ret );
+ }
+-#endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
++#endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED || MBEDTLS_ECP_DP_ED448_ENABLED */
+ 
+ #if defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) ||   \
+     defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) ||   \
+diff --git a/library/version_features.c b/library/version_features.c
+index 72e61e18e6..2b46cf65cf 100644
+--- a/library/version_features.c
++++ b/library/version_features.c
+@@ -354,6 +354,9 @@ static const char * const features[] = {
+ #if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
+     "MBEDTLS_ECP_DP_ED25519_ENABLED",
+ #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
++#if defined(MBEDTLS_ECP_DP_ED448_ENABLED)
++    "MBEDTLS_ECP_DP_ED448_ENABLED",
++#endif /* MBEDTLS_ECP_DP_ED448_ENABLED */
+ #if defined(MBEDTLS_ECP_NIST_OPTIM)
+     "MBEDTLS_ECP_NIST_OPTIM",
+ #endif /* MBEDTLS_ECP_NIST_OPTIM */
+diff --git a/programs/test/query_config.c b/programs/test/query_config.c
+index 9fcaa1f9f3..9360ea1a38 100644
+--- a/programs/test/query_config.c
++++ b/programs/test/query_config.c
+@@ -986,6 +986,14 @@ int query_config( const char *config )
+     }
+ #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
+ 
++#if defined(MBEDTLS_ECP_DP_ED448_ENABLED)
++    if( strcmp( "MBEDTLS_ECP_DP_ED448_ENABLED", config ) == 0 )
++    {
++        MACRO_EXPANSION_TO_STR( MBEDTLS_ECP_DP_ED448_ENABLED );
++        return( 0 );
++    }
++#endif /* MBEDTLS_ECP_DP_ED448_ENABLED */
++
+ #if defined(MBEDTLS_ECP_NIST_OPTIM)
+     if( strcmp( "MBEDTLS_ECP_NIST_OPTIM", config ) == 0 )
+     {
+
+From 2785a30711f038378841eb5f8c940060a2e8c8a7 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 00:48:00 +0200
+Subject: [PATCH 3/6] Add MBEDTLS_ECP_TYPE_EDWARDS to mbedtls_ecp_curve_type
+
+Also tweak mbedtls_ecp_get_type to handle the edwards case.
+
+FIXME: there is probably a cleaner way of doing that.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ include/mbedtls/ecp.h | 1 +
+ library/ecp.c         | 3 +++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
+index 8d3d6d638a..41361a23ec 100644
+--- a/include/mbedtls/ecp.h
++++ b/include/mbedtls/ecp.h
+@@ -109,6 +109,7 @@ typedef enum
+     MBEDTLS_ECP_TYPE_NONE = 0,
+     MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS,    /* y^2 = x^3 + a x + b      */
+     MBEDTLS_ECP_TYPE_MONTGOMERY,           /* y^2 = x^3 + a x^2 + x    */
++    MBEDTLS_ECP_TYPE_EDWARDS,              /* a x^2 + y^2 = 1 + d x^2 y^2 */
+ } mbedtls_ecp_curve_type;
+ 
+ /**
+diff --git a/library/ecp.c b/library/ecp.c
+index 104e1f1220..289cf9ed56 100644
+--- a/library/ecp.c
++++ b/library/ecp.c
+@@ -523,6 +523,9 @@ mbedtls_ecp_curve_type mbedtls_ecp_get_type( const mbedtls_ecp_group *grp )
+ 
+     if( grp->G.Y.p == NULL )
+         return( MBEDTLS_ECP_TYPE_MONTGOMERY );
++    /* FIXME: there is probably a cleaner way of doing that. */
++    else if ( grp->id == MBEDTLS_ECP_DP_ED25519 || grp->id == MBEDTLS_ECP_DP_ED448)
++        return ( MBEDTLS_ECP_TYPE_EDWARDS );
+     else
+         return( MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS );
+ }
+
+From 3c2d7c3918635c7341b050732f862402c65c41f3 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 01:12:56 +0200
+Subject: [PATCH 4/6] Add explicit formulas for Edwards curves
+
+The RFC8032 recommends to implement ed25519 in extended coordinates and
+ed448 in projective coordinates. The two coordinates systems are very
+close with T=x*y for extended coordinates. The corresponding point
+addition and point doubling formulas are actually very similar. Note
+that the formulas given in the RFC are the EFD one simplified with
+a = -1 for ed25519 and a = 1 for ed448.
+
+The Mbed TLS philosophy is to share as much code as possible, so
+projective coordinates are used for both Twisted Edwards and Edwards
+curves, using the formulas from EFD, which do include the a parameter
+of the quation. This also matches the mbedtls_ecp_point implementation
+which supports up to three coordinates.
+
+In order to verify EdDSA signatures, it is necessary to add two points.
+A new mbedtls_ecp_add function is therefore exported in the API. It is
+only implemented for Edwards curve and returns
+MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE for other curves.
+
+The ecp_check_pubkey function simply checks that the points is on the
+curve as there are no recommended checks in the RFC8032 nor in the FIPS
+186-5 draft.
+
+FIXME: There is currently no check for mbedtls_ecp_check_privkey. It's
+not clear what check should be implemented.
+
+FIXME: mbedtls_ecp_set_zero and mbedtls_ecp_is_zero are wrong for
+Edwards curve, the neutral element being (0, 1). This is not possible to
+fix that without changing the API as the group parameter is currently
+not in argument.
+
+FIXME: ecp_normalize_edxyz uses a modular inversion. For elliptic curves
+over GF(p) modular inversions could be done using x^-1 = x^(p-2) (mod
+p). As it doesn't seem to bring any measureable speed improvement, I
+kept the modular inversion.
+
+FIXME: The mbedtls_ecp_keypair type and the related functions
+(mbedtls_ecp_gen_key, mbedtls_ecp_read_key, mbedtls_ecp_check_pub_priv)
+assume that the secret key is a scalar and that the public key is a
+curve point that is obtained by the scalar multiplication of the base
+point by the secret key. This is only partially true for the EdDSA
+algorithm, which employs point enconding and hashes to manipulate those.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ include/mbedtls/ecp.h |  22 +++
+ library/ecp.c         | 364 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 386 insertions(+)
+
+diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
+index 41361a23ec..358ce45e83 100644
+--- a/include/mbedtls/ecp.h
++++ b/include/mbedtls/ecp.h
+@@ -834,6 +834,28 @@ int mbedtls_ecp_tls_write_group( const mbedtls_ecp_group *grp,
+                                  size_t *olen,
+                                  unsigned char *buf, size_t blen );
+ 
++/**
++ * \brief           This function performs a point addition: \p R = \p P + \p Q.
++ *
++ *                  It is not thread-safe to use same group in multiple threads.
++ *
++ * \param grp       The ECP group to use.
++ *                  This must be initialized and have group parameters
++ *                  set, for example through mbedtls_ecp_group_load().
++ * \param R         The point in which to store the result of the calculation.
++ *                  This must be initialized.
++ * \param P         The first point to add. This must be initialized.
++ * \param Q         The second point to add. This must be initialized.
++ *
++ * \return          \c 0 on success.
++ * \return          #MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE if the operation for
++ *                  the group is not implemented.
++ * \return          #MBEDTLS_ERR_MPI_ALLOC_FAILED on memory-allocation failure.
++ * \return          Another negative error code on other kinds of failure.
++ */
++int mbedtls_ecp_add( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
++                     const mbedtls_ecp_point *P, const mbedtls_ecp_point *Q );
++
+ /**
+  * \brief           This function performs a scalar multiplication of a point
+  *                  by an integer: \p R = \p m * \p P.
+diff --git a/library/ecp.c b/library/ecp.c
+index 289cf9ed56..b1f8770e34 100644
+--- a/library/ecp.c
++++ b/library/ecp.c
+@@ -364,6 +364,11 @@ int mbedtls_ecp_check_budget( const mbedtls_ecp_group *grp,
+ #define ECP_MONTGOMERY
+ #endif
+ 
++#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED) || \
++    defined(MBEDTLS_ECP_DP_ED448_ENABLED)
++#define ECP_EDWARDS
++#endif
++
+ /*
+  * List of supported curves:
+  *  - internal ID
+@@ -2429,6 +2434,306 @@ static int ecp_mul_mxz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
+ 
+ #endif /* ECP_MONTGOMERY */
+ 
++#if defined(ECP_EDWARDS)
++/*
++ * For Edwards curves, we do all the internal arithmetic in projective
++ * coordinates. Import/export of points uses only the x and y coordinates,
++ * which are internally represented as X/Z and Y/Z.
++ *
++ * For scalar multiplication, we'll use a Montgomery ladder.
++ */
++
++/*
++ * Normalize Edwards x/y/z coordinates: X = X/Z, Y = Y/Z, Z = 1
++ * Cost: 2M + 1I
++ */
++static int ecp_normalize_edxyz( const mbedtls_ecp_group *grp, mbedtls_ecp_point *P )
++{
++    mbedtls_mpi Zi;
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++
++    mbedtls_mpi_init( &Zi );
++
++    MBEDTLS_MPI_CHK( mbedtls_mpi_inv_mod( &Zi, &P->Z, &grp->P) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &P->X, &P->X, &Zi ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &P->Y, &P->Y, &Zi ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &P->Z, 1) ) ;
++
++cleanup:
++    mbedtls_mpi_free( &Zi );
++
++    return( ret );
++}
++
++/*
++ * Randomize projective x/y/z coordinates:
++ * (X, Y, Z) -> (l X, l Y, l Z) for random l
++ * This is sort of the reverse operation of ecp_normalize_edxyz().
++ *
++ * This countermeasure was first suggested in [2].
++ * Cost: 3M
++ */
++static int ecp_randomize_edxyz( const mbedtls_ecp_group *grp, mbedtls_ecp_point *P,
++                int (*f_rng)(void *, unsigned char *, size_t), void *p_rng )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++    mbedtls_mpi l;
++    size_t p_size;
++    int count = 0;
++
++    p_size = ( grp->pbits + 7 ) / 8;
++    mbedtls_mpi_init( &l );
++
++    /* Generate l such that 1 < l < p */
++    do
++    {
++        MBEDTLS_MPI_CHK( mbedtls_mpi_fill_random( &l, p_size, f_rng, p_rng ) );
++
++        while( mbedtls_mpi_cmp_mpi( &l, &grp->P ) >= 0 )
++            MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( &l, 1 ) );
++
++        if( count++ > 10 )
++            return( MBEDTLS_ERR_ECP_RANDOM_FAILED );
++    }
++    while( mbedtls_mpi_cmp_int( &l, 1 ) <= 0 );
++
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &P->X, &P->X, &l ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &P->Y, &P->Y, &l ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &P->Z, &P->Z, &l ) );
++
++cleanup:
++    mbedtls_mpi_free( &l );
++
++    return( ret );
++}
++
++/*
++ * Add for: R = P + Q for both Edwards and Twisted Edwards curves in projective
++ * coordinates.
++ *
++ * https://hyperelliptic.org/EFD/g1p/auto-code/twisted/projective/addition/add-2008-bbjlp.op3
++ * with
++ * P = (X1, Z1)
++ * Q = (X2, Z2)
++ * R = (X3, Z3)
++ * and eliminating temporary variables t0, t3, ..., t9.
++ *
++ * Cost: 10M + 1S
++ */
++static int ecp_add_edxyz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
++                          const mbedtls_ecp_point *P, const mbedtls_ecp_point *Q )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++    mbedtls_mpi A, B, C, D, E, F, G, t1, t2;
++
++    mbedtls_mpi_init( &A ); mbedtls_mpi_init( &B ); mbedtls_mpi_init( &C );
++    mbedtls_mpi_init( &D ); mbedtls_mpi_init( &E ); mbedtls_mpi_init( &F );
++    mbedtls_mpi_init( &G ); mbedtls_mpi_init( &t1 ); mbedtls_mpi_init( &t2 );
++
++    /* A = Z1*Z2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &A,    &P->Z,   &Q->Z   ) );
++    /* B = A^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &B,    &A,      &A      ) );
++    /* C = X1*X2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &C,    &P->X,   &Q->X   ) );
++    /* D = Y1*Y2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &D,    &P->Y,   &Q->Y   ) );
++    /* E = d*C*D */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &E,    &C,      &D      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &E,    &E,      &grp->B ) );
++    /* F = B-E */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &F,    &B,      &E      ) );
++    /* G = B+E */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &G,    &B,      &E      ) );
++    /* X3 = A*F*((X1+Y1)*(X2+Y2)-C-D) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &t1,   &P->X,   &P->Y   ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &t2,   &Q->X,   &Q->Y   ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->X, &t1,     &t2     ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->X, &R->X,   &C      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->X, &R->X,   &D      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->X, &R->X,   &F      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->X, &R->X,   &A      ) );
++    /* Y3 = A*G*(D-a*C) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Y, &grp->A, &C      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->Y, &D,      &R->Y   ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Y, &R->Y,   &G      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Y, &R->Y,   &A      ) );
++    /* Z3 = F*G */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Z, &F,      &G      ) );
++
++cleanup:
++    mbedtls_mpi_free( &A ); mbedtls_mpi_free( &B ); mbedtls_mpi_free( &C );
++    mbedtls_mpi_free( &D ); mbedtls_mpi_free( &E ); mbedtls_mpi_free( &F );
++    mbedtls_mpi_free( &G ); mbedtls_mpi_free( &t1 ); mbedtls_mpi_free( &t2 );
++
++    return( ret );
++}
++
++/*
++ * Double for: R = 2 * P for both Edwards and Twisted Edwards curves in projective
++ * coordinates.
++ *
++ * https://hyperelliptic.org/EFD/g1p/auto-code/twisted/projective/doubling/dbl-2008-bbjlp.op3
++ * with
++ * P = (X1, Z1)
++ * R = (X3, Z3)
++ * and eliminating H and temporary variables t0, ..., t4.
++ *
++ * Cost: 3M + 4S
++ */
++static int ecp_double_edxyz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
++                          const mbedtls_ecp_point *P )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++    mbedtls_mpi A, B, C, D, E, F, J;
++
++    mbedtls_mpi_init( &A ); mbedtls_mpi_init( &B ); mbedtls_mpi_init( &C );
++    mbedtls_mpi_init( &D ); mbedtls_mpi_init( &E ); mbedtls_mpi_init( &F );
++    mbedtls_mpi_init( &J );
++
++    /* B = (X1+Y1)^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &B,    &P->X,   &P->Y ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &B,    &B,      &B    ) );
++    /* C = X1^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &C,    &P->X,   &P->X ) );
++    /* D = Y1^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &D,    &P->Y,   &P->Y ) );
++    /* E = a*C */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &E,    &grp->A, &C    ) );
++    /* F = E+D */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &F,    &E,      &D    ) );
++    /* J = F-2*(Z1^2) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &J,    &P->Z,   &P->Z ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_shift_l_mod( grp, &J, 1             ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &J,    &F,      &J    ) );
++    /* X3 = (B-C-D)*J */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->X, &B,      &C    ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->X, &R->X,   &D    ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->X, &R->X,   &J    ) );
++    /* Y3 = F*(E-D) */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &R->Y, &E,      &D    ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Y, &R->Y,   &F    ) );
++    /* Z3 = F*J */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &R->Z, &F,      &J    ) );
++
++cleanup:
++    mbedtls_mpi_free( &A ); mbedtls_mpi_free( &B ); mbedtls_mpi_free( &C );
++    mbedtls_mpi_free( &D ); mbedtls_mpi_free( &E ); mbedtls_mpi_free( &F );
++    mbedtls_mpi_free( &J );
++
++    return( ret );
++}
++
++/*
++ * Multiplication with Montgomery ladder in x/y/z coordinates,
++ * for curves in Edwards form.
++ */
++static int ecp_mul_edxyz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
++                          const mbedtls_mpi *m, const mbedtls_ecp_point *P,
++                          int (*f_rng)(void *, unsigned char *, size_t),
++                          void *p_rng )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++    size_t i;
++    unsigned char b;
++    mbedtls_ecp_point RP;
++
++    mbedtls_ecp_point_init( &RP );
++
++    /* Read from P before writing to R, in case P == R */
++    MBEDTLS_MPI_CHK( mbedtls_ecp_copy( &RP, P ) );
++
++    /* Set R to zero in projective coordinates */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &R->X, 0 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &R->Y, 1 ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &R->Z, 1 ) );
++
++    /* RP.X and RP.Y might be slightly larger than P, so reduce them */
++    MOD_ADD( RP.X );
++    MOD_ADD( RP.Y );
++
++    /* Randomize coordinates of the starting point */
++    if( f_rng != NULL )
++        MBEDTLS_MPI_CHK( ecp_randomize_edxyz( grp, &RP, f_rng, p_rng ) );
++
++    /* Loop invariant: R = result so far, RP = R + P */
++    i = mbedtls_mpi_bitlen( m ); /* one past the (zero-based) most significant bit */
++    while( i-- > 0 )
++    {
++        b = mbedtls_mpi_get_bit( m, i );
++        /*
++         *  if (b) R = 2R + P else R = 2R,
++         * which is:
++         *  if (b) add( R, R, RP )
++         *         add( RP, RP, RP )
++         *  else   add( RP, RP, R )
++         *         add( R, R, R )
++         * but using safe conditional swaps to avoid leaks
++         */
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->X, &RP.X, b ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->Y, &RP.Y, b ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->Z, &RP.Z, b ) );
++        MBEDTLS_MPI_CHK( ecp_add_edxyz( grp, &RP, &RP, R ) );
++        MBEDTLS_MPI_CHK( ecp_double_edxyz( grp, R,   R ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->X, &RP.X, b ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->Y, &RP.Y, b ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_safe_cond_swap( &R->Z, &RP.Z, b ) );
++    }
++
++    /*
++     * Knowledge of the projective coordinates may leak the last few bits of the
++     * scalar [1], and since our MPI implementation isn't constant-flow,
++     * inversion (used for coordinate normalization) may leak the full value
++     * of its input via side-channels [2].
++     *
++     * [1] https://eprint.iacr.org/2003/191
++     * [2] https://eprint.iacr.org/2020/055
++     *
++     * Avoid the leak by randomizing coordinates before we normalize them.
++     */
++    if( f_rng != NULL )
++        MBEDTLS_MPI_CHK( ecp_randomize_edxyz( grp, R, f_rng, p_rng ) );
++
++    MBEDTLS_MPI_CHK( ecp_normalize_edxyz( grp, R ) );
++
++cleanup:
++    mbedtls_ecp_point_free( &RP );
++
++    return( ret );
++}
++#endif /* ECP_EDWARDS */
++
++/*
++ * Point addition R = P + Q
++ */
++int mbedtls_ecp_add( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
++                     const mbedtls_ecp_point *P, const mbedtls_ecp_point *Q )
++{
++    int ret = MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
++
++    ECP_VALIDATE_RET( grp != NULL );
++    ECP_VALIDATE_RET( R   != NULL );
++    ECP_VALIDATE_RET( P   != NULL );
++    ECP_VALIDATE_RET( Q   != NULL );
++
++#if defined(ECP_EDWARDS)
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++    {
++        MBEDTLS_MPI_CHK( ecp_add_edxyz( grp, R, P, Q ) );
++        MBEDTLS_MPI_CHK( ecp_normalize_edxyz( grp, R ) );
++    }
++#else
++    (void) grp;
++    (void) R;
++    (void) P;
++    (void) Q;
++    goto cleanup;
++#endif
++
++cleanup:
++    return( ret );
++}
++
+ /*
+  * Restartable multiplication R = m * P
+  */
+@@ -2479,6 +2784,10 @@ int mbedtls_ecp_mul_restartable( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
+     if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS )
+         MBEDTLS_MPI_CHK( ecp_mul_comb( grp, R, m, P, f_rng, p_rng, rs_ctx ) );
+ #endif
++#if defined(ECP_EDWARDS)
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++        MBEDTLS_MPI_CHK( ecp_mul_edxyz( grp, R, m, P, f_rng, p_rng ) );
++#endif
+ 
+ cleanup:
+ 
+@@ -2721,6 +3030,51 @@ static int ecp_check_pubkey_mx( const mbedtls_ecp_group *grp, const mbedtls_ecp_
+ }
+ #endif /* ECP_MONTGOMERY */
+ 
++#if defined(ECP_EDWARDS)
++/*
++ * Check that a point is valid as a public key, i.e. it is actually on
++ * the curve.
++ */
++static int ecp_check_pubkey_ed( const mbedtls_ecp_group *grp, const mbedtls_ecp_point *pt )
++{
++    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
++    mbedtls_mpi LHS, RHS, X2, Y2;
++
++    /* pt coordinates must be normalized for our checks */
++    if( mbedtls_mpi_cmp_int( &pt->X, 0 ) < 0 ||
++        mbedtls_mpi_cmp_int( &pt->Y, 0 ) < 0 ||
++        mbedtls_mpi_cmp_mpi( &pt->X, &grp->P ) >= 0 ||
++        mbedtls_mpi_cmp_mpi( &pt->Y, &grp->P ) >= 0 )
++        return( MBEDTLS_ERR_ECP_INVALID_KEY );
++
++    mbedtls_mpi_init( &LHS ); mbedtls_mpi_init( &RHS );
++    mbedtls_mpi_init( &X2 ); mbedtls_mpi_init( &Y2 );
++
++    /* X2 = X^2, Y2 = Y^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &X2,  &pt->X, &pt->X  ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &Y2,  &pt->Y, &pt->Y  ) );
++
++    /* LHS = a X^2 + Y^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &LHS, &X2,    &grp->A ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_mod( grp, &LHS, &LHS,   &Y2     ) );
++
++    /* RHS = 1 + d X^2 Y^2 */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &RHS, &X2,    &Y2     ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &RHS, &RHS,   &grp->B ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_add_int( &RHS, &RHS, 1 ) ); MOD_ADD( RHS );
++
++    if( mbedtls_mpi_cmp_mpi( &LHS, &RHS ) != 0 )
++        ret = MBEDTLS_ERR_ECP_INVALID_KEY;
++
++cleanup:
++
++    mbedtls_mpi_free( &LHS ); mbedtls_mpi_free( &RHS );
++    mbedtls_mpi_free( &X2 ); mbedtls_mpi_free( &Y2 );
++
++    return( ret );
++}
++#endif /* ECP_EDWARDS */
++
+ /*
+  * Check that a point is valid as a public key
+  */
+@@ -2742,6 +3096,11 @@ int mbedtls_ecp_check_pubkey( const mbedtls_ecp_group *grp,
+     if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS )
+         return( ecp_check_pubkey_sw( grp, pt ) );
+ #endif
++#if defined(ECP_EDWARDS)
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++        return( ecp_check_pubkey_ed( grp, pt ) );
++#endif
++
+     return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+ }
+ 
+@@ -2781,6 +3140,11 @@ int mbedtls_ecp_check_privkey( const mbedtls_ecp_group *grp,
+             return( 0 );
+     }
+ #endif /* ECP_SHORTWEIERSTRASS */
++#if defined(ECP_EDWARDS)
++    /* FIXME: add a check for Edwards */
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++        return( 0 );
++#endif
+ 
+     return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+ }
+
+From cc81d04404fdf871bb673a7f1894cf6328ba5f67 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 19:21:57 +0200
+Subject: [PATCH 5/6] Add Edwards point multiplication tests using RFC8032
+
+Those tests are extracted from RFC8032 sec 7 and correspond to the
+unique SECRET KEY and PUBLIC KEY tuples in the Ed25519 and Ed448 test
+vectors. The eddsa2 Python library defined from Appendix A is used to
+expand the SECRET KEY entries to a scalar value and to decode the
+PUBLIC KEY entries to a point value.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ tests/suites/test_suite_ecp.data | 64 ++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+diff --git a/tests/suites/test_suite_ecp.data b/tests/suites/test_suite_ecp.data
+index 9219179226..ac59aa1ff7 100644
+--- a/tests/suites/test_suite_ecp.data
++++ b/tests/suites/test_suite_ecp.data
+@@ -496,3 +496,67 @@ ecp_muladd_restart:MBEDTLS_ECP_DP_SECP256R1:"CB28E0999B9C7715FD0A80D8E47A7707971
+ ECP restartable muladd secp256r1 max_ops=250
+ depends_on:MBEDTLS_ECP_DP_SECP256R1_ENABLED
+ ecp_muladd_restart:MBEDTLS_ECP_DP_SECP256R1:"CB28E0999B9C7715FD0A80D8E47A77079716CBBF917DD72E97566EA1C066957C":"2B57C0235FB7489768D058FF4911C20FDBE71E3699D91339AFBB903EE17255DC":"C3875E57C85038A0D60370A87505200DC8317C8C534948BEA6559C7C18E6D4CE":"3B4E49C4FDBFC006FF993C81A50EAE221149076D6EC09DDD9FB3B787F85B6483":"2442A5CC0ECD015FA3CA31DC8E2BBC70BF42D60CBCA20085E0822CB04235E970":"6FC98BD7E50211A4A27102FA3549DF79EBCB4BF246B80945CDDFE7D509BBFD7D":250:4:64
++
++ECP point multiplication Ed25519 (RFC8032 TEST 1, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"4FE94D9006F020A5A3C080D96827FFFD3C010AC0F12E7A42CB33284F86837C30":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"55D0E09A2B9D34292297E08D60D0F620C513D47253187C24B12786BD777645CE":"1A5107F7681A02AF2523A6DAF372E10E3A0764C9D3FE4BD5B70AB18201985AD7":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 TEST 2, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"512E502EB0249A255E1C827F3B6B6C7F0A79F4CA8575A91528D58258D79EBD68":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"74AD28205B4F384BC0813E6585864E528085F91FB6A5096F244AE01E57DE43AE":"0C66F42AF155CDC08C96C42ECF2C989CBC7E1B4DA70AB7925A8943E8C317403D":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 TEST 3, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"5CA91E9981A125131BF5C2C54E7F4DBA113DC2155BA523908402D95E758B9A90":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"61213AA2DC9D68833F65D1B48DCF859818236F1734E3E9B945A9FF5486CDBD02":"258090481591EB5DAC0333BA13ED160858F03002D07EA48DA3A118628ECD51FC":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 TEST 1024, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"48CC88F44F786EB86A0E26829CA4B304AA44B27FF2DE6E4BD386F80E8D889C60":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"293FC11179D63D283AB8162D6702E34FC2CB265195FA4F1B0B96845FCFF254D0":"6E421D7F597CEF1FC5C928242BBFFFCE86836E31F2D0670F34724C14FC178127":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 TEST SHA(abc), after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"45B64172C7528F1AF4A5A85DD6DBD87292A0079BF113570BEC4BE0594FCEDD30":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"58B401B9DF6F65A34625400A43FA6E89DD5AE7440E9899C9C96EEA995B72FC2F":"3FE267346819F8EB644DFD2EEF6754C3345024E1702C93F43B565EAD932B17EC":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 foo, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"6BA5A1822A193C806F36839B62347C7AC5347632B47511DDD2D9EA65EE6C0188":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"3493C89A1D42961795326FB77DDDA9B1073EB50954EEC3ACC573CD718BED3093":"128224ABE0FE0C86FB8BADB42B1C85D6AEF9F59C25F0290C7F8F964F5E42C9DF":"01":0
++
++ECP point multiplication Ed25519 (RFC8032 foo3, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED25519:"775CEBCA02203F190A7933C7BC890FC4304F7F88DFB1D19BC9591A637BB30A38":"216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A":"6666666666666666666666666666666666666666666666666666666666666658":"01":"263B6974373C8A34F69342FA060CCABF6AA3C062167458BF43B59E8A4E192184":"72D7D70AA1DDB0B471FD650BFCA17532E9803D892E15895841913B9474121D0F":"01":0
++
++ECP point multiplication Ed448 (RFC8032 Blank, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00B7BBC01FA70105A74FEECE1566F5F98374D1EE1ED836C005B99C51381D5E0275EEF3A45B54F011B488A572F46766EDC78E80A0CEA03039E8":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00B02F7D0580FD8E88F3FC8ECD47F43499B0000FAF1E84D0C2283736C991C4A64447CE4E8D8A6C74010BAF726EF20006BCF1FA990E7A822287":"006125E8AFBE1AFAD16C0FE5F13D78D61B06C7469B7624F1ED7867E9805DA70E8A1F0EA7852434A11D6AD46A61EC87E72CFD61B4599B44D75F":"01":0
++
++ECP point multiplication Ed448 (RFC8032 1 octet, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00F2FE3AD28FAD21358FF9C369C24B14DC010E8E041603DEAF515195AAC6DC63F745ECFE4B76E07715C6C0BA822C7C79C3234F7035905EA988":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00D2FFD9B53D3BFF141F68CF0248020A14E2F1ABA433258C33C290607F78EAB2C6B969BDF226775BA7DB74BCF20FFDDAB9D3ADA6B23A0EE857":"00943A4C7B626051239C1682CBA48E43B802287400EB01EA6A86C098676C0CFA2B37C058935DA534C80ACD7E5F5431E56A45FFCD30F428BA43":"01":0
++
++ECP point multiplication Ed448 (RFC8032 11 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00EDF5D7A93854B0E978D71AD6D0C3ECB9360073BCF18EF162BB07015D5AA7C3555C4ABC1DF27F22646906FE78BD65E427FBD50E85896576A0":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"0006CED0BA06C293E641467B5FBDFD5F4D5399067960D52F259A581DD68177B6B8E07CDD044EA2BECA47BBF1948642706A13520FCA347414F4":"001400476469008B1D9F7E5FCBA43E541A13E71CD761E1FC65E3B128936EA3559B10A0674BD81CC0AA906CB8101B839A49F31B5AF3789EEADC":"01":0
++
++ECP point multiplication Ed448 (RFC8032 12 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00F05E3E64C639860FE28CE3A4B11050C78DE36F4C7750EB69C80884C7B73DEAF57C271B63E76FC0F9BFCA11A23FACDF27BD697D12971F6DD0":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00C24C1E5E9A83470FC782ED6DFFF9036D9D27AD2E57BF76B878E97E11F48A3AAF3232C35B648AB61101FE0633D4415FB19E790EC719E9AE89":"00F51798F09E145ED76B726153949BD1946F6EE4B668E9D824DC4AD43FEE1095CC637C5D01FCC56B8D795E6F75407718301FCCF2C6A06DA13B":"01":0
++
++ECP point multiplication Ed448 (RFC8032 13 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00822492797AE5967FADF0BDCF3AE76B8DE31909D07E266ECE0C2ADD25864EF97DD53BAE57E7D4CC8555DDB7A5A9E6F7E41C2FC0B2529BF72C":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00A17B864B4CEB6EC3F39A62015AE4DFBAAD5F7D274556B18E392F04039C295A28DA2DE62CA40571743531237FB5DD3384FE56141F26CB33A9":"008E57FA5DE64B177BC0C6138E93A01C389F4D6B179EC55D5C81B37B4F29DA612353223A9D2D11A8E5BEAE7B46F0292077A593A40A9B07DAB3":"01":0
++
++ECP point multiplication Ed448 (RFC8032 64 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00AF1D280AC65E3C96497FD31A2BB5C237B2D350814A6B888D5E1F1A3578754F99DFA6FC1057C55F321975AB1F3FC138FE22402D0ED2EC3C24":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"006ADABBA65B22207B5A3F12E4D18B9A7126903E725CE0C3DC3D79632117C9FB0674F1EBB81B0997266A08B8BBB0A624AAE9E12297FC5967A8":"001F088ABD28CB0609B53F3BB09B091B26BDDFA1F48B80D6393AC58A6FA2833416DDF1A9202C13C6B10A56E5CF63837F2C80ABDB8EF50597DF":"01":0
++
++ECP point multiplication Ed448 (RFC8032 256 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00DF0E31E879A9B233BE192092F6ABA249D36C5B45CFFD4571E5F73AEA4E7A6908EE675090949EF78588F52191E655C620439014E7641EBE80":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00D2C823E18A3652CA5CABB145DA4EE3F7BE126E6F7210DB9161E1D45CB9655919A33864C7D21E00F9B9453A79F0776E8DEC225E68A8F65012":"003AEDD4F32E8690760EC89E2EE2813D8A7965AE082B4012FE9B6B93A943FF6B6F18258FA08624EFE27141BE18E7D95D9F07E2CF4D016F7579":"01":0
++
++ECP point multiplication Ed448 (RFC8032 1023 octets, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00AA4A9A5790446BDFD57DC732A4EE899B20FD1FBE00B0E9F7044E4B9450A986BA6187ECAF4A06752ACB02A6020E9970910C5C489868C30180":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"003E4113BDB22E7FFDE4D83B2DCBEB2A420BC1BAA4D2C034DF3E63ACBD31C4AA42F869280FECD4B234C848F81E64ACB8630E9E67FA01BEB8C2":"00F48C833787C31CF1CDF8AEEC4EF6560C5C685D1CB8FF8EA09D790EECE1EC44AD14B18B5758F20108EB3FFCAD9BCCDBFF94ACA5708A2E1BA8":"01":0
++
++ECP point multiplication Ed448 (RFC8032 abc, after exp./dec.)
++depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
++ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00C1879C4FA5BB009EC7D27BB9DB7918C5A0296546F90E2D7B9384B1B6E405ECA16A67B312110C413780DA038BDF3654768C39389849D1AA98":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00153F42025ABA3B0DAECAA5CD79458B3146C7C9378C16C17B4A59BC3561113D90C169045BC12966C3F93E140C2CA0A3ACC33D9205B9DAF9B1":"0038F5C0015D3DEDD576C232810DD90373B5B1D631A12894C043B7BE529CBAE03EDE177D8FA490B56131DBCB2465D2ABA777EF839FC1719B25":"01":0
+
+From 7f7dc33d99d91bda7b2a05a9b7607d165546f675 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 20 Apr 2020 21:34:39 +0200
+Subject: [PATCH 6/6] Add points read/write support for Edwards curves
+
+Note that decoding a point for curves over prime field p with
+p = 1 (mod 8) is not supported. This is not the case of Ed25519 and
+Ed448. Supporting that would require a more complex algorithm to
+compute the square root, for instance the Tonelli-Shanks algorithm.
+
+Note that the square root formulas come from the RFC Erratas 5758 and
+5759.
+
+FIXME: mbedtls_ecp_point_read_binary_ed() has to be defined after the
+mbedtls_mpi_xxx_mod functions as some computation are needed to read
+a point. Currently mbedtls_ecp_point_read_binary() is defined before
+those functions, so a forward declaration is needed. This should
+probably be fixed by reshuffling functions in ecp.c.
+
+Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ library/ecp.c | 164 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 164 insertions(+)
+
+diff --git a/library/ecp.c b/library/ecp.c
+index b1f8770e34..ab5bfae949 100644
+--- a/library/ecp.c
++++ b/library/ecp.c
+@@ -799,11 +799,44 @@ int mbedtls_ecp_point_write_binary( const mbedtls_ecp_group *grp,
+         }
+     }
+ #endif
++#if defined(ECP_EDWARDS)
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++    {
++        /* Only the compressed format is defined for Edwards curves. */
++        ECP_VALIDATE_RET( format == MBEDTLS_ECP_PF_COMPRESSED );
++
++        /* We need to add an extra bit to store the least significant bit of X. */
++        plen = ( mbedtls_mpi_bitlen( &grp->P ) + 1 + 7 ) >> 3;
++
++        *olen = plen;
++        if( buflen < *olen )
++            return( MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL );
++
++        if( mbedtls_mpi_cmp_int( &P->Z, 1 ) != 0 )
++            return MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
++
++        MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary_le( &P->Y, buf, plen ) );
++
++        /* Store the least significant bit of X into the most significant
++         * bit of the final octet. */
++        if( mbedtls_mpi_get_bit( &P->X, 0 ))
++            buf[plen - 1] |= 0x80;
++    }
++#endif
+ 
+ cleanup:
+     return( ret );
+ }
+ 
++#if defined(ECP_EDWARDS)
++/* FIXME: The function is defined later in this file as reading a binary
++   point on an Edwards curve needs computation and thus access to the
++   mbedtls_mpi_xxx_mod functions. */
++static int mbedtls_ecp_point_read_binary_ed( const mbedtls_ecp_group *grp,
++                                             mbedtls_ecp_point *pt,
++                                             const unsigned char *buf, size_t ilen );
++#endif
++
+ /*
+  * Import a point from unsigned binary data (SEC1 2.3.4 and RFC7748)
+  */
+@@ -861,6 +894,12 @@ int mbedtls_ecp_point_read_binary( const mbedtls_ecp_group *grp,
+         MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &pt->Z, 1 ) );
+     }
+ #endif
++#if defined(ECP_EDWARDS)
++    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
++    {
++        MBEDTLS_MPI_CHK( mbedtls_ecp_point_read_binary_ed( grp, pt, buf, ilen ) );
++    }
++#endif
+ 
+ cleanup:
+     return( ret );
+@@ -1156,6 +1195,131 @@ static inline int mbedtls_mpi_shift_l_mod( const mbedtls_ecp_group *grp,
+     return( ret );
+ }
+ 
++#if defined(ECP_EDWARDS)
++/*
++ * Import and Edward point from binary data (RFC8032)
++ */
++static int mbedtls_ecp_point_read_binary_ed( const mbedtls_ecp_group *grp,
++                                             mbedtls_ecp_point *pt,
++                                             const unsigned char *buf, size_t ilen )
++{
++    int ret = MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
++    mbedtls_mpi u, v, t;
++    mbedtls_mpi_uint r;
++    size_t plen;
++    int x_0;
++
++    /* We need to add an extra bit to store the least significant bit of X. */
++    plen = ( mbedtls_mpi_bitlen( &grp->P ) + 1 + 7 ) >> 3;
++
++    if( plen != ilen )
++        return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
++
++    mbedtls_mpi_init( &u ); mbedtls_mpi_init( &v ); mbedtls_mpi_init( &t );
++
++    /* Interpret the string as an integer in little-endian representation. */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_read_binary_le( &pt->Y, buf, plen ) );
++
++    /* High bit of last digit is the least significant bit of the
++     * x-coordinate. Save it and clear it. */
++    x_0 = mbedtls_mpi_get_bit ( &pt->Y, (plen * 8) - 1 );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_set_bit( &pt->Y, (plen * 8) - 1, 0 ) );
++
++    /* If the resulting y-coordinate is >= p, decoding fails. */
++    if( mbedtls_mpi_cmp_mpi( &pt->Y, &grp->P ) >= 0 )
++    {
++        ret = MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
++        goto cleanup;
++    }
++
++    /* To recover the x-coordinates, the curve equation implies
++       x^2 = (y^2 - 1) / (d y^2 - a) (mod p). The denominator is always
++       non-zero mod p. Let u = y^2 - 1 and v = d y^2 - a. */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &u, &pt->Y,  &pt->Y  ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &v, &grp->B, &u      ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mod( grp, &v, &v,      &grp->A ) );
++    MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &u, &u, 1 ) ); MOD_SUB( u );
++
++    /* We use different algorithm to compute the square root of (u/v)
++     * depending on p (mod 8). */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_mod_int( &r, &grp->P, 8 ) );
++
++    if( r == 3 || r == 7 )
++    {
++        /* This corresponds to p = 3 (mod 4) and for instance Ed448. *
++         * The candidate root is x = sqrt(u/v) = u (u v)^((p-3)/4) */
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &pt->X,  &u, &v ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &t, &grp->P, 3 ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( &t, 2 ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &pt->X, &pt->X, &t, &grp->P, NULL ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &pt->X, &pt->X, &u ) );
++
++        /* If v * x^2 = u (mod p), the recovered x-coordinate is x. Otherwise,
++         * no square root exists, and the decoding fails. */
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &t,   &pt->X,   &pt->X ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &t,   &t,      &v    ) );
++        if( mbedtls_mpi_cmp_mpi( &t, &u ) != 0 )
++        {
++            ret = MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
++            goto cleanup;
++        }
++    }
++    else if( r == 5 )
++    {
++        /* This corresponds for instance to Ed25519. The candidate root is
++         * x = sqrt(u/v) = u (u v)^((p-5)/8) */
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &pt->X,  &u, &v ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &t, &grp->P, 5 ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( &t, 3 ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &pt->X, &pt->X, &t, &grp->P, NULL ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &pt->X, &pt->X, &u ) );
++
++        /* If v * x^2 = u (mod p), x is a square root. */
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &t,   &pt->X,   &pt->X ) );
++        MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &t,   &t,      &v    ) );
++        if( mbedtls_mpi_cmp_mpi( &t, &u ) != 0 )
++        {
++            /* Otherwise if v x^2 = -u (mod p), x * 2^((p-1)/4) is a square
++             * root. */
++            MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mpi( &t, &grp->P, &t ) );
++            if( mbedtls_mpi_cmp_mpi( &t, &u ) != 0 )
++            {
++                /* Otherwise decoding fails. */
++                ret = MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
++                goto cleanup;
++            }
++
++            /* x *= 2^((p-1)/4) */
++            MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &t, 16, "2B8324804FC1DF0B2B4D00993DFBD7A72F431806AD2FE478C4EE1B274A0EA0B0" ) );
++            MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mod( grp, &pt->X, &pt->X, &t ) );
++        }
++    }
++    else
++    {
++        /* Not implemented for p = 1 (mod 8). */
++        ret = MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
++        goto cleanup;
++    }
++
++    /* Use the x_0 bit to select the right square root. */
++    if( mbedtls_mpi_cmp_int( &pt->X, 0 ) == 0 && x_0 == 1 )
++    {
++        ret = MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
++        goto cleanup;
++    }
++    if( mbedtls_mpi_get_bit( &pt->X, 0 ) != x_0 )
++        MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mpi( &pt->X, &grp->P, &pt->X ) );
++
++    /* Set Z to 1 in projective coordinates. */
++    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &pt->Z, 1 ) );
++
++cleanup:
++    mbedtls_mpi_free( &u ); mbedtls_mpi_free( &v ); mbedtls_mpi_free( &t );
++
++    return( ret );
++}
++#endif
++
+ #if defined(ECP_SHORTWEIERSTRASS)
+ /*
+  * For curves in short Weierstrass form, we do all the internal operations in

@@ -31,8 +31,6 @@ __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8
 #else
   (void)curve;
   (void)priv_key;
-  (void)digest;
-  (void)sig;
 #endif
   return 0;
 }
@@ -99,9 +97,7 @@ __attribute__((weak)) int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_
   return mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
 #else
   (void)curve;
-  (void)pub_key;
-  (void)digest;
-  (void)sig;
+  (void)priv_key;
   return 0;
 #endif
 }
