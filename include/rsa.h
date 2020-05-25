@@ -38,7 +38,18 @@ int rsa_generate_key(rsa_key_t *key, uint16_t nbits);
  * @return 0 on success.
  */
 int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
+
+/**
+ * Compute private key operation, used in sign or decrypt.
+ * 
+ * @param key The given private key.
+ * @param input Input data.
+ * @param output Output data.
+ *
+ * @return 0 on success.
+ */
 int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output);
+
 int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
 int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out);
 
