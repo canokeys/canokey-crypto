@@ -13,11 +13,11 @@ if (USE_MBEDCRYPTO)
     set(USE_CRYPTO_SUBMODULE ON CACHE BOOL "")
     set(ENABLE_PROGRAMS OFF CACHE BOOL "")
     set(ENABLE_TESTING OFF CACHE BOOL "") # disable mbedtls tests
-    file(COPY mbedtls DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/patched)
+    file(COPY mbedtls DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/patched)
     execute_process(COMMAND patch -p1 -u
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/patched/mbedtls
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls
         INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mbedtls-ed25519.patch)
-    add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/patched/mbedtls)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls)
 endif (USE_MBEDCRYPTO)
 
 file(GLOB SRC src/*.c)
@@ -26,7 +26,7 @@ if (USE_MBEDCRYPTO)
     target_link_libraries(canokey-crypto mbedcrypto)
 endif (USE_MBEDCRYPTO)
 target_include_directories(canokey-crypto PUBLIC include)
-target_include_directories(canokey-crypto PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/patched/mbedtls/include)
+target_include_directories(canokey-crypto PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls/include)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
