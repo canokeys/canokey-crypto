@@ -116,6 +116,7 @@ __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen,
   mbedtls_mpi_add_mpi(&k, &k, &r);
   mbedtls_mpi_mod_mpi(&k, &k, &ed25519.N);
 
+  // write result to RS[32..64]
   mbedtls_mpi_write_binary_le(&k, RS + 32, 32);
 
   // cleanup

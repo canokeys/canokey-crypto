@@ -3,9 +3,8 @@
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
 
-__attribute__((weak)) void x25519(curve25519_key mypublic,
-                                  const curve25519_key secret,
-                                  const curve25519_key basepoint) {
+__attribute__((weak)) void x25519(curve25519_key shared_secret, const curve25519_key private_key,
+            const curve25519_key public_key) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_ecp_point base;
   mbedtls_ecp_point public;
@@ -22,18 +21,18 @@ __attribute__((weak)) void x25519(curve25519_key mypublic,
   mbedtls_ecp_group_load(&cv25519, MBEDTLS_ECP_DP_CURVE25519);
 
   // read base point
-  mbedtls_mpi_read_binary(&base.X, basepoint, 32);
+  mbedtls_mpi_read_binary(&base.X, public_key, 32);
   mbedtls_mpi_free(&base.Y);
   mbedtls_mpi_lset(&base.Z, 1);
 
   // read secret
-  mbedtls_mpi_read_binary(&sk, secret, 32);
+  mbedtls_mpi_read_binary(&sk, private_key, 32);
 
   // multiple scalar
   mbedtls_ecp_mul(&cv25519, &public, &sk, &base, mbedtls_rnd, NULL);
 
   // write result
-  mbedtls_mpi_write_binary(&public.X, mypublic, 32);
+  mbedtls_mpi_write_binary(&public.X, shared_secret, 32);
 
   mbedtls_ecp_point_free(&base);
   mbedtls_ecp_point_free(&public);
