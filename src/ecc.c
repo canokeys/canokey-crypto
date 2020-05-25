@@ -11,13 +11,13 @@ static const uint8_t grp_id[] = {
     [ECC_SECP256K1] = MBEDTLS_ECP_DP_SECP256K1,
     [ECC_SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
 };
-#endif
 
 static const uint8_t key_size[] = {
     [ECC_SECP256R1] = 32,
     [ECC_SECP256K1] = 32,
     [ECC_SECP384R1] = 48,
 };
+#endif
 
 __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key) {
 #ifdef USE_MBEDCRYPTO
