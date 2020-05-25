@@ -10,8 +10,6 @@ void x25519(curve25519_key mypublic, const curve25519_key secret,
   mbedtls_ecp_group cv25519;
   mbedtls_mpi sk;
 
-  size_t i;
-
   // init
   mbedtls_ecp_point_init(&base);
   mbedtls_ecp_point_init(&public);
