@@ -1,7 +1,10 @@
 #include "ed25519.h"
 #include "rand.h"
+
+#ifdef USE_MBEDCRYPTO
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
+#endif
 
 __attribute__((weak)) void x25519(curve25519_key shared_secret, const curve25519_key private_key,
             const curve25519_key public_key) {

@@ -1,8 +1,11 @@
 #include "ed25519.h"
 #include "rand.h"
 #include "sha.h"
+
+#ifdef USE_MBEDCRYPTO
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
+#endif
 
 // reference:
 // https://blog.dang.fan/zh-Hans/posts/25519
