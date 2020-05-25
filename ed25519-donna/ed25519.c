@@ -54,7 +54,7 @@ __attribute__((weak)) void ed25519_publickey(const ed25519_secret_key sk, ed2551
 }
 */
 
-__attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen, const ed25519_secret_key sk,
+__attribute__((weak)) void ed25519_sign_old(const unsigned char *m, size_t mlen, const ed25519_secret_key sk,
                                         const ed25519_public_key pk, ed25519_signature RS) {
   ed25519_hash_context ctx;
   bignum256modm r, S, a;
