@@ -5,3 +5,4 @@ add_mocked_test(ecdsa
 add_mocked_test(aes LINK_LIBRARIES canokey-crypto)
 add_mocked_test(des LINK_LIBRARIES canokey-crypto)
 add_mocked_test(25519 LINK_LIBRARIES canokey-crypto)
+add_mocked_test(rsa LINK_LIBRARIES canokey-crypto)
