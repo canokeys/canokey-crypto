@@ -7,7 +7,9 @@
 // reference:
 // https://blog.dang.fan/zh-Hans/posts/25519
 
-void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk) {
+__attribute__((weak)) void ed25519_publickey(const ed25519_secret_key sk,
+                                             ed25519_public_key pk) {
+#ifdef USE_MBEDCRYPTO
   // calc sha512 of sk
   uint8_t digest[SHA512_DIGEST_LENGTH];
   sha512_raw(sk, sizeof(ed25519_secret_key), digest);
@@ -41,6 +43,7 @@ void ed25519_publickey(const ed25519_secret_key sk, ed25519_public_key pk) {
   mbedtls_ecp_group_free(&ed25519);
   mbedtls_mpi_free(&s);
   mbedtls_ecp_point_free(&p);
+#endif
 }
 
 __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen,
@@ -48,6 +51,7 @@ __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen,
                                         const ed25519_public_key pk,
                                         ed25519_signature RS) {
 
+#ifdef USE_MBEDCRYPTO
   // calc sha512 of sk
   uint8_t digest[SHA512_DIGEST_LENGTH];
   sha512_raw(sk, sizeof(ed25519_secret_key), digest);
@@ -120,4 +124,5 @@ __attribute__((weak)) void ed25519_sign(const unsigned char *m, size_t mlen,
   mbedtls_ecp_point_free(&p);
   mbedtls_mpi_free(&k);
   mbedtls_mpi_free(&s);
+#endif
 }

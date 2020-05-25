@@ -3,8 +3,10 @@
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
 
-void x25519(curve25519_key mypublic, const curve25519_key secret,
-            const curve25519_key basepoint) {
+__attribute__((weak)) void x25519(curve25519_key mypublic,
+                                  const curve25519_key secret,
+                                  const curve25519_key basepoint) {
+#ifdef USE_MBEDCRYPTO
   mbedtls_ecp_point base;
   mbedtls_ecp_point public;
   mbedtls_ecp_group cv25519;
@@ -37,6 +39,7 @@ void x25519(curve25519_key mypublic, const curve25519_key secret,
   mbedtls_ecp_point_free(&public);
   mbedtls_ecp_group_free(&cv25519);
   mbedtls_mpi_free(&sk);
+#endif
 }
 
 void curve25519_key_from_random(curve25519_key private_key) {

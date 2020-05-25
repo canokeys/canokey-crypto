@@ -16,7 +16,7 @@ if (USE_MBEDCRYPTO)
     add_subdirectory(mbedtls)
 endif (USE_MBEDCRYPTO)
 
-file(GLOB SRC src/*.c ed25519-donna/*.c)
+file(GLOB SRC src/*.c)
 add_library(canokey-crypto ${SRC})
 if (USE_MBEDCRYPTO)
     target_link_libraries(canokey-crypto mbedcrypto)
