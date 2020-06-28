@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 #ifndef CANOKEY_CRYPTO_SHA_H_
 #define CANOKEY_CRYPTO_SHA_H_
 

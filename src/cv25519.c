@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "ed25519.h"
 #include "rand.h"
 

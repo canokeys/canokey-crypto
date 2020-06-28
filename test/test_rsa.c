@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include <hmac.h>
 #include <rsa.h>
 #include <setjmp.h>

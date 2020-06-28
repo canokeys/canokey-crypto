@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #define __STDC_WANT_LIB_EXT1__ 1 // C11's bounds-checking interface.
 #include <string.h>
 

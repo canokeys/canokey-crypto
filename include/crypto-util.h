@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 #ifndef _UTILS_H
 #define _UTILS_H
 

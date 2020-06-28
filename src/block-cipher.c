@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include <block-cipher.h>
 #include <memzero.h>
 #include <string.h>
