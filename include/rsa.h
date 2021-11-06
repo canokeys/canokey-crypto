@@ -52,6 +52,6 @@ int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
 int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output);
 
 int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
-int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out);
+int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out, uint8_t *invalid_padding);
 
 #endif

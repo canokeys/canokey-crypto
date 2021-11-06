@@ -111,10 +111,14 @@ int rsa_sign_pkcs_v15(rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *
   return rsa_private(key, sig, sig);
 }
 
-int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out) {
+int rsa_decrypt_pkcs_v15(rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out, uint8_t *invalid_padding) {
+  *invalid_padding = 0;
   if (rsa_private(key, in, out) < 0) return -1;
   int len = pkcs1_v15_remove_padding(out, key->nbits / 8, out);
-  if (len < 0) return -1;
+  if (len < 0) {
+    *invalid_padding = 1;
+    return -1;
+  }
   *olen = len;
   return 0;
 }
