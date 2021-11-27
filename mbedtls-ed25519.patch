@@ -1,4 +1,4 @@
-From a29a565d28b7a51af7f792d3e841f186dba1edf5 Mon Sep 17 00:00:00 2001
+From a6752846065e061b5fe9ea9ecf8b73729dc73ae1 Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 00:48:00 +0200
 Subject: [PATCH 1/6] Add edwards25519 curve as defined in RFC7748
@@ -15,11 +15,11 @@ Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
  5 files changed, 64 insertions(+), 3 deletions(-)
 
 diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
-index 901e26d897..e6efade83e 100644
+index e2f460c8e..dd2d17447 100644
 --- a/include/mbedtls/config.h
 +++ b/include/mbedtls/config.h
-@@ -769,6 +769,7 @@
- #define MBEDTLS_ECP_DP_BP512R1_ENABLED
+@@ -781,6 +781,7 @@
+ /* Montgomery curves (supporting ECP) */
  #define MBEDTLS_ECP_DP_CURVE25519_ENABLED
  #define MBEDTLS_ECP_DP_CURVE448_ENABLED
 +#define MBEDTLS_ECP_DP_ED25519_ENABLED
@@ -27,10 +27,10 @@ index 901e26d897..e6efade83e 100644
  /**
   * \def MBEDTLS_ECP_NIST_OPTIM
 diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
-index 4c05b4fd0a..75b1680f93 100644
+index 06880a0cd..030dff75b 100644
 --- a/include/mbedtls/ecp.h
 +++ b/include/mbedtls/ecp.h
-@@ -90,6 +90,7 @@ typedef enum
+@@ -123,6 +123,7 @@ typedef enum
      MBEDTLS_ECP_DP_SECP224K1,      /*!< Domain parameters for 224-bit "Koblitz" curve. */
      MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
      MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
@@ -39,10 +39,10 @@ index 4c05b4fd0a..75b1680f93 100644
  
  /**
 diff --git a/library/ecp_curves.c b/library/ecp_curves.c
-index a24a50c031..ab1fc75e60 100644
+index ff26a18e8..eab4a8aa3 100644
 --- a/library/ecp_curves.c
 +++ b/library/ecp_curves.c
-@@ -632,7 +632,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
+@@ -612,7 +612,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
  
  /* Additional forward declarations */
@@ -51,7 +51,7 @@ index a24a50c031..ab1fc75e60 100644
  static int ecp_mod_p255( mbedtls_mpi * );
  #endif
  #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
-@@ -749,6 +749,48 @@ static int ecp_use_curve448( mbedtls_ecp_group *grp )
+@@ -747,6 +747,48 @@ cleanup:
  }
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
  
@@ -100,7 +100,7 @@ index a24a50c031..ab1fc75e60 100644
  /*
   * Set a group using well-known domain parameters
   */
-@@ -836,6 +878,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
+@@ -834,6 +876,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
              return( ecp_use_curve448( grp ) );
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
  
@@ -113,7 +113,7 @@ index a24a50c031..ab1fc75e60 100644
          default:
              grp->id = MBEDTLS_ECP_DP_NONE;
              return( MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE );
-@@ -1224,7 +1272,7 @@ static int ecp_mod_p521( mbedtls_mpi *N )
+@@ -1225,7 +1273,7 @@ cleanup:
  
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
  
@@ -122,7 +122,7 @@ index a24a50c031..ab1fc75e60 100644
  
  /* Size of p255 in terms of mbedtls_mpi_uint */
  #define P255_WIDTH      ( 255 / 8 / sizeof( mbedtls_mpi_uint ) + 1 )
-@@ -1266,7 +1314,7 @@ static int ecp_mod_p255( mbedtls_mpi *N )
+@@ -1267,7 +1315,7 @@ static int ecp_mod_p255( mbedtls_mpi *N )
  cleanup:
      return( ret );
  }
@@ -132,10 +132,10 @@ index a24a50c031..ab1fc75e60 100644
  #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
  
 diff --git a/library/version_features.c b/library/version_features.c
-index d16ad1bacd..72e61e18e6 100644
+index f665a2375..73eec83b2 100644
 --- a/library/version_features.c
 +++ b/library/version_features.c
-@@ -351,6 +351,9 @@ static const char * const features[] = {
+@@ -348,6 +348,9 @@ static const char * const features[] = {
  #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
      "MBEDTLS_ECP_DP_CURVE448_ENABLED",
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
@@ -146,10 +146,10 @@ index d16ad1bacd..72e61e18e6 100644
      "MBEDTLS_ECP_NIST_OPTIM",
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
 diff --git a/programs/test/query_config.c b/programs/test/query_config.c
-index bd3f638a7c..9fcaa1f9f3 100644
+index 9760f626c..1f313ac38 100644
 --- a/programs/test/query_config.c
 +++ b/programs/test/query_config.c
-@@ -978,6 +978,14 @@ int query_config( const char *config )
+@@ -986,6 +986,14 @@ int query_config( const char *config )
      }
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
  
@@ -164,8 +164,11 @@ index bd3f638a7c..9fcaa1f9f3 100644
  #if defined(MBEDTLS_ECP_NIST_OPTIM)
      if( strcmp( "MBEDTLS_ECP_NIST_OPTIM", config ) == 0 )
      {
+-- 
+2.34.0
 
-From d949b061fa5ebe491c1a437ea513c3cf07d0a5bf Mon Sep 17 00:00:00 2001
+
+From 10c4819c78006cd5bf23011a9fbb9df952d48399 Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 00:48:00 +0200
 Subject: [PATCH 2/6] Add edwards448 curve as defined in RFC7748
@@ -182,10 +185,10 @@ Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
  5 files changed, 70 insertions(+), 3 deletions(-)
 
 diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
-index e6efade83e..7d9e2cbc14 100644
+index dd2d17447..721a0987e 100644
 --- a/include/mbedtls/config.h
 +++ b/include/mbedtls/config.h
-@@ -770,6 +770,7 @@
+@@ -782,6 +782,7 @@
  #define MBEDTLS_ECP_DP_CURVE25519_ENABLED
  #define MBEDTLS_ECP_DP_CURVE448_ENABLED
  #define MBEDTLS_ECP_DP_ED25519_ENABLED
@@ -194,10 +197,10 @@ index e6efade83e..7d9e2cbc14 100644
  /**
   * \def MBEDTLS_ECP_NIST_OPTIM
 diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
-index 75b1680f93..8d3d6d638a 100644
+index 030dff75b..d77c179a8 100644
 --- a/include/mbedtls/ecp.h
 +++ b/include/mbedtls/ecp.h
-@@ -91,6 +91,7 @@ typedef enum
+@@ -124,6 +124,7 @@ typedef enum
      MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
      MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
      MBEDTLS_ECP_DP_ED25519,        /*!< Domain parameters for Ed25519. */
@@ -206,10 +209,10 @@ index 75b1680f93..8d3d6d638a 100644
  
  /**
 diff --git a/library/ecp_curves.c b/library/ecp_curves.c
-index ab1fc75e60..08552ec264 100644
+index eab4a8aa3..a0e2be4d1 100644
 --- a/library/ecp_curves.c
 +++ b/library/ecp_curves.c
-@@ -635,7 +635,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
+@@ -615,7 +615,7 @@ static int ecp_mod_p521( mbedtls_mpi * );
  #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
  static int ecp_mod_p255( mbedtls_mpi * );
  #endif
@@ -218,7 +221,7 @@ index ab1fc75e60..08552ec264 100644
  static int ecp_mod_p448( mbedtls_mpi * );
  #endif
  #if defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED)
-@@ -791,6 +791,54 @@ static int ecp_use_ed25519( mbedtls_ecp_group *grp )
+@@ -789,6 +789,54 @@ cleanup:
  }
  #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
  
@@ -273,7 +276,7 @@ index ab1fc75e60..08552ec264 100644
  /*
   * Set a group using well-known domain parameters
   */
-@@ -884,6 +932,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
+@@ -882,6 +930,12 @@ int mbedtls_ecp_group_load( mbedtls_ecp_group *grp, mbedtls_ecp_group_id id )
              return( ecp_use_ed25519( grp ) );
  #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
  
@@ -286,7 +289,7 @@ index ab1fc75e60..08552ec264 100644
          default:
              grp->id = MBEDTLS_ECP_DP_NONE;
              return( MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE );
-@@ -1316,7 +1370,7 @@ static int ecp_mod_p255( mbedtls_mpi *N )
+@@ -1317,7 +1371,7 @@ cleanup:
  }
  #endif /* MBEDTLS_ECP_DP_CURVE25519_ENABLED || MBEDTLS_ECP_DP_ED25519_ENABLED */
  
@@ -295,7 +298,7 @@ index ab1fc75e60..08552ec264 100644
  
  /* Size of p448 in terms of mbedtls_mpi_uint */
  #define P448_WIDTH      ( 448 / 8 / sizeof( mbedtls_mpi_uint ) )
-@@ -1385,7 +1439,7 @@ static int ecp_mod_p448( mbedtls_mpi *N )
+@@ -1386,7 +1440,7 @@ static int ecp_mod_p448( mbedtls_mpi *N )
  cleanup:
      return( ret );
  }
@@ -305,10 +308,10 @@ index ab1fc75e60..08552ec264 100644
  #if defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) ||   \
      defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) ||   \
 diff --git a/library/version_features.c b/library/version_features.c
-index 72e61e18e6..2b46cf65cf 100644
+index 73eec83b2..a3b535632 100644
 --- a/library/version_features.c
 +++ b/library/version_features.c
-@@ -354,6 +354,9 @@ static const char * const features[] = {
+@@ -351,6 +351,9 @@ static const char * const features[] = {
  #if defined(MBEDTLS_ECP_DP_ED25519_ENABLED)
      "MBEDTLS_ECP_DP_ED25519_ENABLED",
  #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
@@ -319,10 +322,10 @@ index 72e61e18e6..2b46cf65cf 100644
      "MBEDTLS_ECP_NIST_OPTIM",
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
 diff --git a/programs/test/query_config.c b/programs/test/query_config.c
-index 9fcaa1f9f3..9360ea1a38 100644
+index 1f313ac38..b0d67c1f3 100644
 --- a/programs/test/query_config.c
 +++ b/programs/test/query_config.c
-@@ -986,6 +986,14 @@ int query_config( const char *config )
+@@ -994,6 +994,14 @@ int query_config( const char *config )
      }
  #endif /* MBEDTLS_ECP_DP_ED25519_ENABLED */
  
@@ -337,8 +340,11 @@ index 9fcaa1f9f3..9360ea1a38 100644
  #if defined(MBEDTLS_ECP_NIST_OPTIM)
      if( strcmp( "MBEDTLS_ECP_NIST_OPTIM", config ) == 0 )
      {
+-- 
+2.34.0
 
-From 2785a30711f038378841eb5f8c940060a2e8c8a7 Mon Sep 17 00:00:00 2001
+
+From 8b6ce1f97206c5a16a14f93bd8eea29877c4b31b Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 00:48:00 +0200
 Subject: [PATCH 3/6] Add MBEDTLS_ECP_TYPE_EDWARDS to mbedtls_ecp_curve_type
@@ -354,10 +360,10 @@ Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
  2 files changed, 4 insertions(+)
 
 diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
-index 8d3d6d638a..41361a23ec 100644
+index d77c179a8..b27f79ef7 100644
 --- a/include/mbedtls/ecp.h
 +++ b/include/mbedtls/ecp.h
-@@ -109,6 +109,7 @@ typedef enum
+@@ -142,6 +142,7 @@ typedef enum
      MBEDTLS_ECP_TYPE_NONE = 0,
      MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS,    /* y^2 = x^3 + a x + b      */
      MBEDTLS_ECP_TYPE_MONTGOMERY,           /* y^2 = x^3 + a x^2 + x    */
@@ -366,10 +372,10 @@ index 8d3d6d638a..41361a23ec 100644
  
  /**
 diff --git a/library/ecp.c b/library/ecp.c
-index 104e1f1220..289cf9ed56 100644
+index ca49f9941..7c7c8934e 100644
 --- a/library/ecp.c
 +++ b/library/ecp.c
-@@ -523,6 +523,9 @@ mbedtls_ecp_curve_type mbedtls_ecp_get_type( const mbedtls_ecp_group *grp )
+@@ -664,6 +664,9 @@ mbedtls_ecp_curve_type mbedtls_ecp_get_type( const mbedtls_ecp_group *grp )
  
      if( grp->G.Y.p == NULL )
          return( MBEDTLS_ECP_TYPE_MONTGOMERY );
@@ -379,8 +385,11 @@ index 104e1f1220..289cf9ed56 100644
      else
          return( MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS );
  }
+-- 
+2.34.0
 
-From 3c2d7c3918635c7341b050732f862402c65c41f3 Mon Sep 17 00:00:00 2001
+
+From 116abf2fe55d1c0bc146baa2c4fd6670bdb8d1ea Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 01:12:56 +0200
 Subject: [PATCH 4/6] Add explicit formulas for Edwards curves
@@ -430,14 +439,14 @@ algorithm, which employs point enconding and hashes to manipulate those.
 Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
 ---
  include/mbedtls/ecp.h |  22 +++
- library/ecp.c         | 364 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 386 insertions(+)
+ library/ecp.c         | 383 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 405 insertions(+)
 
 diff --git a/include/mbedtls/ecp.h b/include/mbedtls/ecp.h
-index 41361a23ec..358ce45e83 100644
+index b27f79ef7..557912653 100644
 --- a/include/mbedtls/ecp.h
 +++ b/include/mbedtls/ecp.h
-@@ -834,6 +834,28 @@ int mbedtls_ecp_tls_write_group( const mbedtls_ecp_group *grp,
+@@ -913,6 +913,28 @@ int mbedtls_ecp_tls_write_group( const mbedtls_ecp_group *grp,
                                   size_t *olen,
                                   unsigned char *buf, size_t blen );
  
@@ -467,13 +476,32 @@ index 41361a23ec..358ce45e83 100644
   * \brief           This function performs a scalar multiplication of a point
   *                  by an integer: \p R = \p m * \p P.
 diff --git a/library/ecp.c b/library/ecp.c
-index 289cf9ed56..b1f8770e34 100644
+index 7c7c8934e..d3c8ff0d8 100644
 --- a/library/ecp.c
 +++ b/library/ecp.c
-@@ -364,6 +364,11 @@ int mbedtls_ecp_check_budget( const mbedtls_ecp_group *grp,
- #define ECP_MONTGOMERY
- #endif
+@@ -502,6 +502,30 @@ int mbedtls_ecp_check_budget( const mbedtls_ecp_group *grp,
  
+ #endif /* MBEDTLS_ECP_RESTARTABLE */
+ 
++#if defined(MBEDTLS_ECP_DP_SECP192R1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP224R1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP256R1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP384R1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP521R1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_BP256R1_ENABLED)   ||   \
++    defined(MBEDTLS_ECP_DP_BP384R1_ENABLED)   ||   \
++    defined(MBEDTLS_ECP_DP_BP512R1_ENABLED)   ||   \
++    defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) ||   \
++    defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED)
++#define ECP_SHORTWEIERSTRASS
++#endif
++
++#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || \
++    defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
++#define ECP_MONTGOMERY
++#endif
++
 +#if defined(MBEDTLS_ECP_DP_ED25519_ENABLED) || \
 +    defined(MBEDTLS_ECP_DP_ED448_ENABLED)
 +#define ECP_EDWARDS
@@ -482,9 +510,9 @@ index 289cf9ed56..b1f8770e34 100644
  /*
   * List of supported curves:
   *  - internal ID
-@@ -2429,6 +2434,306 @@ static int ecp_mul_mxz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
+@@ -2654,6 +2678,306 @@ cleanup:
  
- #endif /* ECP_MONTGOMERY */
+ #endif /* MBEDTLS_ECP_MONTGOMERY_ENABLED */
  
 +#if defined(ECP_EDWARDS)
 +/*
@@ -789,7 +817,7 @@ index 289cf9ed56..b1f8770e34 100644
  /*
   * Restartable multiplication R = m * P
   */
-@@ -2479,6 +2784,10 @@ int mbedtls_ecp_mul_restartable( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
+@@ -2706,6 +3030,10 @@ int mbedtls_ecp_mul_restartable( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
      if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS )
          MBEDTLS_MPI_CHK( ecp_mul_comb( grp, R, m, P, f_rng, p_rng, rs_ctx ) );
  #endif
@@ -800,9 +828,9 @@ index 289cf9ed56..b1f8770e34 100644
  
  cleanup:
  
-@@ -2721,6 +3030,51 @@ static int ecp_check_pubkey_mx( const mbedtls_ecp_group *grp, const mbedtls_ecp_
+@@ -3051,6 +3379,51 @@ static int ecp_check_pubkey_mx( const mbedtls_ecp_group *grp, const mbedtls_ecp_
  }
- #endif /* ECP_MONTGOMERY */
+ #endif /* MBEDTLS_ECP_MONTGOMERY_ENABLED */
  
 +#if defined(ECP_EDWARDS)
 +/*
@@ -852,7 +880,7 @@ index 289cf9ed56..b1f8770e34 100644
  /*
   * Check that a point is valid as a public key
   */
-@@ -2742,6 +3096,11 @@ int mbedtls_ecp_check_pubkey( const mbedtls_ecp_group *grp,
+@@ -3072,6 +3445,11 @@ int mbedtls_ecp_check_pubkey( const mbedtls_ecp_group *grp,
      if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS )
          return( ecp_check_pubkey_sw( grp, pt ) );
  #endif
@@ -864,10 +892,10 @@ index 289cf9ed56..b1f8770e34 100644
      return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
  }
  
-@@ -2781,6 +3140,11 @@ int mbedtls_ecp_check_privkey( const mbedtls_ecp_group *grp,
+@@ -3111,6 +3489,11 @@ int mbedtls_ecp_check_privkey( const mbedtls_ecp_group *grp,
              return( 0 );
      }
- #endif /* ECP_SHORTWEIERSTRASS */
+ #endif /* MBEDTLS_ECP_SHORT_WEIERSTRASS_ENABLED */
 +#if defined(ECP_EDWARDS)
 +    /* FIXME: add a check for Edwards */
 +    if( mbedtls_ecp_get_type( grp ) == MBEDTLS_ECP_TYPE_EDWARDS )
@@ -876,8 +904,11 @@ index 289cf9ed56..b1f8770e34 100644
  
      return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
  }
+-- 
+2.34.0
 
-From cc81d04404fdf871bb673a7f1894cf6328ba5f67 Mon Sep 17 00:00:00 2001
+
+From 3da12addd9f4b05cc280d063439e54ceed00ad1e Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 19:21:57 +0200
 Subject: [PATCH 5/6] Add Edwards point multiplication tests using RFC8032
@@ -894,13 +925,13 @@ Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
  1 file changed, 64 insertions(+)
 
 diff --git a/tests/suites/test_suite_ecp.data b/tests/suites/test_suite_ecp.data
-index 9219179226..ac59aa1ff7 100644
+index 79912ebc3..731a20424 100644
 --- a/tests/suites/test_suite_ecp.data
 +++ b/tests/suites/test_suite_ecp.data
-@@ -496,3 +496,67 @@ ecp_muladd_restart:MBEDTLS_ECP_DP_SECP256R1:"CB28E0999B9C7715FD0A80D8E47A7707971
- ECP restartable muladd secp256r1 max_ops=250
- depends_on:MBEDTLS_ECP_DP_SECP256R1_ENABLED
- ecp_muladd_restart:MBEDTLS_ECP_DP_SECP256R1:"CB28E0999B9C7715FD0A80D8E47A77079716CBBF917DD72E97566EA1C066957C":"2B57C0235FB7489768D058FF4911C20FDBE71E3699D91339AFBB903EE17255DC":"C3875E57C85038A0D60370A87505200DC8317C8C534948BEA6559C7C18E6D4CE":"3B4E49C4FDBFC006FF993C81A50EAE221149076D6EC09DDD9FB3B787F85B6483":"2442A5CC0ECD015FA3CA31DC8E2BBC70BF42D60CBCA20085E0822CB04235E970":"6FC98BD7E50211A4A27102FA3549DF79EBCB4BF246B80945CDDFE7D509BBFD7D":250:4:64
+@@ -796,3 +796,67 @@ fix_negative:"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff":
+ # The first call to fix_negative in the test case of issue #4296.
+ ECP fix_negative: #4296.1
+ fix_negative:"8A4DD4C8B42C5EAED15FE4F4579F4CE513EC90A94010BF000000000000000000":-1:256
 +
 +ECP point multiplication Ed25519 (RFC8032 TEST 1, after exp./dec.)
 +depends_on:MBEDTLS_ECP_DP_ED25519_ENABLED
@@ -965,8 +996,11 @@ index 9219179226..ac59aa1ff7 100644
 +ECP point multiplication Ed448 (RFC8032 abc, after exp./dec.)
 +depends_on:MBEDTLS_ECP_DP_ED448_ENABLED
 +ecp_test_mul:MBEDTLS_ECP_DP_ED448:"00C1879C4FA5BB009EC7D27BB9DB7918C5A0296546F90E2D7B9384B1B6E405ECA16A67B312110C413780DA038BDF3654768C39389849D1AA98":"4F1970C66BED0DED221D15A622BF36DA9E146570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05E":"693F46716EB6BC248876203756C9C7624BEA73736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA14":"01":"00153F42025ABA3B0DAECAA5CD79458B3146C7C9378C16C17B4A59BC3561113D90C169045BC12966C3F93E140C2CA0A3ACC33D9205B9DAF9B1":"0038F5C0015D3DEDD576C232810DD90373B5B1D631A12894C043B7BE529CBAE03EDE177D8FA490B56131DBCB2465D2ABA777EF839FC1719B25":"01":0
+-- 
+2.34.0
 
-From 7f7dc33d99d91bda7b2a05a9b7607d165546f675 Mon Sep 17 00:00:00 2001
+
+From a4f8b33513e54d052f2142eaef0a6265d10e44a6 Mon Sep 17 00:00:00 2001
 From: Aurelien Jarno <aurelien@aurel32.net>
 Date: Mon, 20 Apr 2020 21:34:39 +0200
 Subject: [PATCH 6/6] Add points read/write support for Edwards curves
@@ -991,10 +1025,10 @@ Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
  1 file changed, 164 insertions(+)
 
 diff --git a/library/ecp.c b/library/ecp.c
-index b1f8770e34..ab5bfae949 100644
+index d3c8ff0d8..01f621bd6 100644
 --- a/library/ecp.c
 +++ b/library/ecp.c
-@@ -799,11 +799,44 @@ int mbedtls_ecp_point_write_binary( const mbedtls_ecp_group *grp,
+@@ -960,11 +960,44 @@ int mbedtls_ecp_point_write_binary( const mbedtls_ecp_group *grp,
          }
      }
  #endif
@@ -1039,7 +1073,7 @@ index b1f8770e34..ab5bfae949 100644
  /*
   * Import a point from unsigned binary data (SEC1 2.3.4 and RFC7748)
   */
-@@ -861,6 +894,12 @@ int mbedtls_ecp_point_read_binary( const mbedtls_ecp_group *grp,
+@@ -1022,6 +1055,12 @@ int mbedtls_ecp_point_read_binary( const mbedtls_ecp_group *grp,
          MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &pt->Z, 1 ) );
      }
  #endif
@@ -1052,9 +1086,9 @@ index b1f8770e34..ab5bfae949 100644
  
  cleanup:
      return( ret );
-@@ -1156,6 +1195,131 @@ static inline int mbedtls_mpi_shift_l_mod( const mbedtls_ecp_group *grp,
-     return( ret );
+@@ -1330,6 +1369,131 @@ cleanup:
  }
+ #endif /* All functions referencing mbedtls_mpi_shift_l_mod() are alt-implemented without fallback */
  
 +#if defined(ECP_EDWARDS)
 +/*
@@ -1181,6 +1215,9 @@ index b1f8770e34..ab5bfae949 100644
 +}
 +#endif
 +
- #if defined(ECP_SHORTWEIERSTRASS)
+ #if defined(MBEDTLS_ECP_SHORT_WEIERSTRASS_ENABLED)
  /*
   * For curves in short Weierstrass form, we do all the internal operations in
+-- 
+2.34.0
+
