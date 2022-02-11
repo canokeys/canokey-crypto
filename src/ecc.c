@@ -34,6 +34,27 @@ __attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8
 #else
   (void)curve;
   (void)priv_key;
+  (void)pub_key;
+#endif
+  return 0;
+}
+
+__attribute__((weak)) int ecc_generate_from_seed(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key, uint8_t *seed) {
+#ifdef USE_MBEDCRYPTO
+  mbedtls_ecp_keypair keypair;
+  mbedtls_ecp_keypair_init(&keypair);
+
+  mbedtls_ecp_gen_key(grp_id[curve], &keypair, mbedtls_rnd, NULL);
+  mbedtls_mpi_write_binary(&keypair.d, priv_key, key_size[curve]);
+  mbedtls_mpi_write_binary(&keypair.Q.X, pub_key, key_size[curve]);
+  mbedtls_mpi_write_binary(&keypair.Q.Y, pub_key + key_size[curve], key_size[curve]);
+
+  mbedtls_ecp_keypair_free(&keypair);
+#else
+  (void)curve;
+  (void)priv_key;
+  (void)pub_key;
+  (void)seed;
 #endif
   return 0;
 }

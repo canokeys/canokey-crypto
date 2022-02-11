@@ -9,6 +9,7 @@ typedef enum {
   ECC_SECP256R1,
   ECC_SECP256K1,
   ECC_SECP384R1,
+  ECC_SM2,
 } ECC_Curve;
 
 /**
@@ -21,6 +22,18 @@ typedef enum {
  * @return 0: Success, -1: Error
  */
 int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key);
+
+/**
+ * Generate an ECDSA key pair from the seed
+ *
+ * @param curve     ECC_Curve
+ * @param priv_key  The output buffer for the private key
+ * @param pub_key   The output buffer for the public key
+ * @param seed      The seed for generating the key
+ *
+ * @return 0: Success, -1: Error
+ */
+int ecc_generate_from_seed(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key, uint8_t *seed);
 
 /**
  * Sign the given digest
