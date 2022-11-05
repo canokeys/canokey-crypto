@@ -12,64 +12,70 @@
 
 static void test_ecc_keygen(void **state) {
   (void)state;
-  uint8_t private_key[32], public_key[64], expected[64];
-  ecc_generate(ECC_SECP256R1, private_key, public_key);
-  ecdsa_get_public_key(&nist256p1, private_key, expected);
+  ecc_key_t key;
+  uint8_t expected[64];
+  ecc_generate(SECP256R1, &key);
+  ecdsa_get_public_key(&nist256p1, key.pri, expected);
   for (int i = 0; i != 64; ++i) {
-    assert_int_equal(public_key[i], expected[i]);
+    assert_int_equal(key.pub[i], expected[i]);
   }
 }
 
 static void test_ecdsa_sign(void **state) {
   (void)state;
-  uint8_t private_key[32], public_key[64], sig[64];
+  ecc_key_t key;
+  uint8_t sig[64];
   uint8_t digest[32] = {0x98, 0x34, 0x87, 0x6d, 0xcf, 0xb0, 0x5c, 0xb1, 0x67, 0xa5, 0xc2, 0x49, 0x53, 0xeb, 0xa5, 0x8c,
                         0x4a, 0xc8, 0x9b, 0x1a, 0xdf, 0x57, 0xf2, 0x8f, 0x2f, 0x9d, 0x09, 0xaf, 0x10, 0x7e, 0xe8, 0xf0};
-  ecc_generate(ECC_SECP256R1, private_key, public_key);
-  ecdsa_sign(ECC_SECP256R1, private_key, digest, sig);
-  ecdsa_verify_digest(&nist256p1, public_key, sig, digest);
-  assert_int_equal(ecdsa_verify_digest(&nist256p1, public_key, sig, digest), 0);
+  ecc_generate(SECP256R1, &key);
+  ecc_sign(SECP256R1, &key, digest, sig);
+  assert_int_equal(ecdsa_verify_digest(&nist256p1, key.pub, sig, digest), 0);
 }
 
 static void test_ecdsa_verify(void **state) {
   (void)state;
-  uint8_t private_key[32], public_key[64], sig[64];
+  ecc_key_t key;
+  uint8_t sig[64];
   uint8_t digest[32] = {0x98, 0x34, 0x87, 0x6d, 0xcf, 0xb0, 0x5c, 0xb1, 0x67, 0xa5, 0xc2, 0x49, 0x53, 0xeb, 0xa5, 0x8c,
                         0x4a, 0xc8, 0x9b, 0x1a, 0xdf, 0x57, 0xf2, 0x8f, 0x2f, 0x9d, 0x09, 0xaf, 0x10, 0x7e, 0xe8, 0xf0};
-  ecc_generate(ECC_SECP256R1, private_key, public_key);
-  ecdsa_sign(ECC_SECP256R1, private_key, digest, sig);
-  assert_int_equal(ecdsa_verify(ECC_SECP256R1, public_key, sig, digest), 0);
+  ecc_generate(SECP256R1, &key);
+  ecc_sign(SECP256R1, &key, digest, sig);
+  assert_int_equal(ecc_verify(SECP256R1, &key, sig, digest), 0);
 }
 
 static void test_ecc_verify_private_key(void **state) {
   (void)state;
-  uint8_t private_key[32] = {1};
-  assert_int_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 1);
-  memset(private_key, 0xFF, 32);
-  assert_int_equal(ecc_verify_private_key(ECC_SECP256R1, private_key), 0);
+  ecc_key_t key;
+  memset(key.pri, 0x01, 32);
+  assert_int_equal(ecc_verify_private_key(SECP256R1, &key), 1);
+  memset(key.pri, 0xFF, 32);
+  assert_int_equal(ecc_verify_private_key(SECP256R1, &key), 0);
 }
 
 static void test_ecc_get_public_key(void **state) {
   (void)state;
-  uint8_t private_key[32], public_key[64], expected[64];
-  ecc_generate(ECC_SECP256R1, private_key, expected);
-  ecc_get_public_key(ECC_SECP256R1, private_key, public_key);
+  ecc_key_t key;
+  uint8_t expected[64];
+  ecc_generate(SECP256R1, &key);
+  memcpy(expected, key.pub, 64);
+  ecc_complete_key(SECP256R1, &key);
   for (int i = 0; i != 64; ++i) {
-    assert_int_equal(public_key[i], expected[i]);
+    assert_int_equal(key.pub[i], expected[i]);
   }
 }
 
 static void test_ecdh(void **state) {
   (void)state;
-  uint8_t private_key[32], public_key[64], out[64], expected[64];
-  ecc_generate(ECC_SECP256R1, private_key, expected); // ignore expected
-  ecc_generate(ECC_SECP256R1, expected, public_key); // ignore expected
-  ecdh_decrypt(ECC_SECP256R1, private_key, public_key, out);
+  ecc_key_t key1, key2;
+  uint8_t out[64], expected[64];
+  ecc_generate(SECP256R1, &key1);
+  ecc_generate(SECP256R1, &key2);
+  ecdh(SECP256R1, key1.pri, key2.pub, out);
 
   curve_point pub;
-  ecdsa_read_pubkey(&nist256p1, public_key, &pub);
+  ecdsa_read_pubkey(&nist256p1, key2.pub, &pub);
   bignum256 s;
-  bn_read_be(private_key, &s);
+  bn_read_be(key1.pri, &s);
   point_multiply(&nist256p1, &s, &pub, &pub);
   bn_write_be(&pub.x, expected);
   bn_write_be(&pub.y, expected + 32);
