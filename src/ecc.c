@@ -8,59 +8,57 @@
 #include <mbedtls/ecdsa.h>
 
 static const uint8_t grp_id[] = {
-    [ECC_SECP256R1] = MBEDTLS_ECP_DP_SECP256R1,
-    [ECC_SECP256K1] = MBEDTLS_ECP_DP_SECP256K1,
-    [ECC_SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
-};
-
-static const uint8_t key_size[] = {
-    [ECC_SECP256R1] = 32,
-    [ECC_SECP256K1] = 32,
-    [ECC_SECP384R1] = 48,
+    [SECP256R1] = MBEDTLS_ECP_DP_SECP256R1,
+    [SECP256K1] = MBEDTLS_ECP_DP_SECP256K1,
+    [SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
 };
 #endif
 
-__attribute__((weak)) int ecc_generate(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key) {
+__attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_ecp_keypair keypair;
   mbedtls_ecp_keypair_init(&keypair);
 
-  mbedtls_ecp_gen_key(grp_id[curve], &keypair, mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&keypair.d, priv_key, key_size[curve]);
-  mbedtls_mpi_write_binary(&keypair.Q.X, pub_key, key_size[curve]);
-  mbedtls_mpi_write_binary(&keypair.Q.Y, pub_key + key_size[curve], key_size[curve]);
+  mbedtls_ecp_gen_key(grp_id[type], &keypair, mbedtls_rnd, NULL);
+  mbedtls_mpi_write_binary(&keypair.d, key->pri, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&keypair.Q.X, key->pub, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&keypair.Q.Y, key->pub + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
   mbedtls_ecp_keypair_free(&keypair);
 #else
-  (void)curve;
-  (void)priv_key;
-  (void)pub_key;
+  (void)type;
+  (void)key;
 #endif
   return 0;
 }
 
-__attribute__((weak)) int ecc_generate_from_seed(ECC_Curve curve, uint8_t *priv_key, uint8_t *pub_key, uint8_t *seed) {
+__attribute__((weak)) int ecc_generate_from_seed(key_type_t type, uint8_t *seed, ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_ecp_keypair keypair;
   mbedtls_ecp_keypair_init(&keypair);
 
-  mbedtls_ecp_gen_key(grp_id[curve], &keypair, mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&keypair.d, priv_key, key_size[curve]);
-  mbedtls_mpi_write_binary(&keypair.Q.X, pub_key, key_size[curve]);
-  mbedtls_mpi_write_binary(&keypair.Q.Y, pub_key + key_size[curve], key_size[curve]);
+  mbedtls_ecp_gen_key(grp_id[type], &keypair, mbedtls_rnd, NULL);
+  mbedtls_mpi_write_binary(&keypair.d, key->pri, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&keypair.Q.X, key->pub, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&keypair.Q.Y, key->pub + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
   mbedtls_ecp_keypair_free(&keypair);
 #else
-  (void)curve;
-  (void)priv_key;
-  (void)pub_key;
+  (void)type;
   (void)seed;
+  (void)key;
 #endif
   return 0;
 }
 
-__attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key, const uint8_t *digest, uint8_t *sig) {
+__attribute__((weak)) int ecc_sign(key_type_t type, const ecc_key_t *key, const uint8_t *digest, uint8_t *sig) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_mpi r, s, d;
   mbedtls_ecp_group grp;
   mbedtls_mpi_init(&r);
@@ -68,28 +66,29 @@ __attribute__((weak)) int ecdsa_sign(ECC_Curve curve, const uint8_t *priv_key, c
   mbedtls_mpi_init(&d);
   mbedtls_ecp_group_init(&grp);
 
-  mbedtls_ecp_group_load(&grp, grp_id[curve]);
-  mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
-  mbedtls_ecdsa_sign(&grp, &r, &s, &d, digest, key_size[curve], mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&r, sig, key_size[curve]);
-  mbedtls_mpi_write_binary(&s, sig + key_size[curve], key_size[curve]);
+  mbedtls_ecp_group_load(&grp, grp_id[type]);
+  mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_ecdsa_sign(&grp, &r, &s, &d, digest, PRIVATE_KEY_LENGTH[type], mbedtls_rnd, NULL);
+  mbedtls_mpi_write_binary(&r, sig, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&s, sig + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
   mbedtls_mpi_free(&r);
   mbedtls_mpi_free(&s);
   mbedtls_mpi_free(&d);
   mbedtls_ecp_group_free(&grp);
 #else
-  (void)curve;
-  (void)priv_key;
+  (void)type;
+  (void)key;
   (void)digest;
   (void)sig;
 #endif
   return 0;
 }
 
-__attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, const uint8_t *sig,
-                                       const uint8_t *digest) {
+__attribute__((weak)) int ecc_verify(key_type_t type, const ecc_key_t *key, const uint8_t *sig, const uint8_t *digest) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_mpi r, s;
   mbedtls_ecp_group grp;
   mbedtls_ecp_point pnt;
@@ -98,13 +97,13 @@ __attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, 
   mbedtls_ecp_group_init(&grp);
   mbedtls_ecp_point_init(&pnt);
 
-  mbedtls_ecp_group_load(&grp, grp_id[curve]);
-  mbedtls_mpi_read_binary(&pnt.X, pub_key, key_size[curve]);
-  mbedtls_mpi_read_binary(&pnt.Y, pub_key + key_size[curve], key_size[curve]);
+  mbedtls_ecp_group_load(&grp, grp_id[type]);
+  mbedtls_mpi_read_binary(&pnt.X, key->pub, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_read_binary(&pnt.Y, key->pub + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
   mbedtls_mpi_lset(&pnt.Z, 1);
-  mbedtls_mpi_read_binary(&r, sig, key_size[curve]);
-  mbedtls_mpi_read_binary(&s, sig + key_size[curve], key_size[curve]);
-  int res = mbedtls_ecdsa_verify(&grp, digest, key_size[curve], &pnt, &r, &s);
+  mbedtls_mpi_read_binary(&r, sig, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_read_binary(&s, sig + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
+  int res = mbedtls_ecdsa_verify(&grp, digest, PRIVATE_KEY_LENGTH[type], &pnt, &r, &s);
 
   mbedtls_mpi_free(&r);
   mbedtls_mpi_free(&s);
@@ -112,37 +111,41 @@ __attribute__((weak)) int ecdsa_verify(ECC_Curve curve, const uint8_t *pub_key, 
   mbedtls_ecp_point_free(&pnt);
   return res;
 #else
-  (void)curve;
-  (void)pub_key;
+  (void)type;
+  (void)key;
   (void)digest;
   (void)sig;
   return 0;
 #endif
 }
 
-__attribute__((weak)) int ecc_verify_private_key(ECC_Curve curve, uint8_t *priv_key) {
+__attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_mpi d;
   mbedtls_ecp_group grp;
   mbedtls_mpi_init(&d);
   mbedtls_ecp_group_init(&grp);
 
-  mbedtls_ecp_group_load(&grp, grp_id[curve]);
-  mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
+  mbedtls_ecp_group_load(&grp, grp_id[type]);
+  mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
   int res = mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
 
   mbedtls_mpi_free(&d);
   mbedtls_ecp_group_free(&grp);
   return res;
 #else
-  (void)curve;
+  (void)type;
   (void)priv_key;
   return 0;
 #endif
 }
 
-__attribute__((weak)) int ecc_get_public_key(ECC_Curve curve, const uint8_t *priv_key, uint8_t *pub_key) {
+__attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_mpi d;
   mbedtls_ecp_group grp;
   mbedtls_ecp_point pnt;
@@ -150,26 +153,28 @@ __attribute__((weak)) int ecc_get_public_key(ECC_Curve curve, const uint8_t *pri
   mbedtls_ecp_group_init(&grp);
   mbedtls_ecp_point_init(&pnt);
 
-  mbedtls_ecp_group_load(&grp, grp_id[curve]);
-  mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
+  mbedtls_ecp_group_load(&grp, grp_id[type]);
+  mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
   mbedtls_ecp_mul(&grp, &pnt, &d, &grp.G, mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&pnt.X, pub_key, key_size[curve]);
-  mbedtls_mpi_write_binary(&pnt.Y, pub_key + key_size[curve], key_size[curve]);
+  mbedtls_mpi_write_binary(&pnt.X, key->pub, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&pnt.Y, key->pub + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
   mbedtls_mpi_free(&d);
   mbedtls_ecp_group_free(&grp);
   mbedtls_ecp_point_free(&pnt);
 #else
-  (void)curve;
+  (void)type;
   (void)priv_key;
   (void)pub_key;
 #endif
   return 0;
 }
 
-__attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key, const uint8_t *receiver_pub_key,
+__attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const uint8_t *receiver_pub_key,
                                        uint8_t *out) {
 #ifdef USE_MBEDCRYPTO
+  if (!IS_ECC(type)) return -1;
+
   mbedtls_mpi d;
   mbedtls_ecp_group grp;
   mbedtls_ecp_point pnt;
@@ -177,20 +182,20 @@ __attribute__((weak)) int ecdh_decrypt(ECC_Curve curve, const uint8_t *priv_key,
   mbedtls_ecp_group_init(&grp);
   mbedtls_ecp_point_init(&pnt);
 
-  mbedtls_ecp_group_load(&grp, grp_id[curve]);
-  mbedtls_mpi_read_binary(&d, priv_key, key_size[curve]);
-  mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, key_size[curve]);
-  mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + key_size[curve], key_size[curve]);
+  mbedtls_ecp_group_load(&grp, grp_id[type]);
+  mbedtls_mpi_read_binary(&d, priv_key, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
   mbedtls_mpi_lset(&pnt.Z, 1);
   mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&pnt.X, out, key_size[curve]);
-  mbedtls_mpi_write_binary(&pnt.Y, out + key_size[curve], key_size[curve]);
+  mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]);
+  mbedtls_mpi_write_binary(&pnt.Y, out + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
   mbedtls_mpi_free(&d);
   mbedtls_ecp_group_free(&grp);
   mbedtls_ecp_point_free(&pnt);
 #else
-  (void)curve;
+  (void)type;
   (void)priv_key;
   (void)receiver_pub_key;
   (void)out;
@@ -219,7 +224,8 @@ size_t ecdsa_sig2ansi(uint8_t key_len, const uint8_t *input, uint8_t *output) {
   uint8_t part2_len = key_len - leading_zero_len2;
   if (leading_zero_len1 < 0) leading_zero_len1 = 0;
   if (leading_zero_len2 < 0) leading_zero_len2 = 0;
-  memmove(output + 6 + part1_len + (part2_len == key_len + 1 ? 1 : 0), input + key_len + leading_zero_len2, key_len - leading_zero_len2);
+  memmove(output + 6 + part1_len + (part2_len == key_len + 1 ? 1 : 0), input + key_len + leading_zero_len2,
+          key_len - leading_zero_len2);
   memmove(output + 4 + (part1_len == key_len + 1 ? 1 : 0), input + leading_zero_len1, key_len - leading_zero_len1);
   output[0] = 0x30;
   output[1] = part1_len + part2_len + 4;

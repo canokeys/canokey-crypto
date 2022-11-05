@@ -26,6 +26,6 @@ int memcmp_s(const uint8_t *p, const uint8_t *q, size_t len) {
 
 void random_delay(void) {
   uint16_t delay = random32() & 0xFFFF;
-  for (uint16_t i = 0; i != delay; ++i)
-    asm volatile("nop");
+  for (volatile uint16_t i = 0; i != delay; ++i)
+    __asm volatile("nop");
 }
