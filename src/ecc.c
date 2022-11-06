@@ -356,7 +356,7 @@ __attribute__((weak)) void K__ed25519_sign(const unsigned char *m, size_t mlen, 
   (void)mlen;
   (void)sk;
   (void)pk;
-  (void)RS;
+  (void)rs;
 #endif
 }
 
