@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#include "ed25519.h"
+#include "ecc.h"
 #include "sha.h"
 #include <cmocka.h>
 
@@ -22,7 +22,7 @@ static void test_ed25519_public(void **state) {
       0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
   };
 
-  ed25519_publickey(in, out);
+  K__ed25519_publickey(in, out);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
@@ -43,7 +43,7 @@ static void test_ed25519_public2(void **state) {
                         0x9c, 0x98, 0x2c, 0xcf, 0x2e, 0xc4, 0x96, 0x8c,
                         0xc0, 0xcd, 0x55, 0xf1, 0x2a, 0xf4, 0x66, 0x0c};
 
-  ed25519_publickey(in, out);
+  K__ed25519_publickey(in, out);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
@@ -74,7 +74,7 @@ static void test_ed25519_sign(void **state) {
       0xee, 0xb0, 0x0d, 0x29, 0x16, 0x12, 0xbb, 0x0c, 0x00,
   };
 
-  ed25519_sign(m, sizeof(m), sk, pk, sig);
+  K__ed25519_sign(m, sizeof(m), sk, pk, sig);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(sig[i], expected[i]);
@@ -105,7 +105,7 @@ static void test_ed25519_sign2(void **state) {
       0x24, 0x65, 0x51, 0x41, 0x43, 0x8e, 0x7a, 0x10, 0x0b,
   };
 
-  ed25519_sign(m, sizeof(m), sk, pk, sig);
+  K__ed25519_sign(m, sizeof(m), sk, pk, sig);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(sig[i], expected[i]);
@@ -131,8 +131,8 @@ static void test_cv25519_decrypt(void **state) {
                         0x25, 0x0f, 0x35, 0x80, 0xf4, 0x3b, 0x8e, 0x72,
                         0xe1, 0x2d, 0xce, 0xa4, 0x5b, 0x9d, 0x5d, 0x4a};
 
-  curve25519_key_from_random(sk);
-  x25519(out, sk, input);
+  K__x25519_key_from_random(sk);
+  K__x25519(out, sk, input);
 
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);

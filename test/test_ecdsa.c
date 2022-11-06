@@ -28,19 +28,8 @@ static void test_ecdsa_sign(void **state) {
   uint8_t digest[32] = {0x98, 0x34, 0x87, 0x6d, 0xcf, 0xb0, 0x5c, 0xb1, 0x67, 0xa5, 0xc2, 0x49, 0x53, 0xeb, 0xa5, 0x8c,
                         0x4a, 0xc8, 0x9b, 0x1a, 0xdf, 0x57, 0xf2, 0x8f, 0x2f, 0x9d, 0x09, 0xaf, 0x10, 0x7e, 0xe8, 0xf0};
   ecc_generate(SECP256R1, &key);
-  ecc_sign(SECP256R1, &key, digest, sig);
+  ecc_sign(SECP256R1, &key, digest, sizeof(digest), sig);
   assert_int_equal(ecdsa_verify_digest(&nist256p1, key.pub, sig, digest), 0);
-}
-
-static void test_ecdsa_verify(void **state) {
-  (void)state;
-  ecc_key_t key;
-  uint8_t sig[64];
-  uint8_t digest[32] = {0x98, 0x34, 0x87, 0x6d, 0xcf, 0xb0, 0x5c, 0xb1, 0x67, 0xa5, 0xc2, 0x49, 0x53, 0xeb, 0xa5, 0x8c,
-                        0x4a, 0xc8, 0x9b, 0x1a, 0xdf, 0x57, 0xf2, 0x8f, 0x2f, 0x9d, 0x09, 0xaf, 0x10, 0x7e, 0xe8, 0xf0};
-  ecc_generate(SECP256R1, &key);
-  ecc_sign(SECP256R1, &key, digest, sig);
-  assert_int_equal(ecc_verify(SECP256R1, &key, sig, digest), 0);
 }
 
 static void test_ecc_verify_private_key(void **state) {
@@ -155,7 +144,6 @@ int main() {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_ecc_keygen),
       cmocka_unit_test(test_ecdsa_sign),
-      cmocka_unit_test(test_ecdsa_verify),
       cmocka_unit_test(test_ecc_verify_private_key),
       cmocka_unit_test(test_ecc_get_public_key),
       cmocka_unit_test(test_ecdh),
