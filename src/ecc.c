@@ -112,7 +112,7 @@ __attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key
     mbedtls_ecp_group_free(&grp);
     return res;
   } else { // ed25519 & x25519
-    return 0;
+    return 1;
   }
 #else
   (void)type;
