@@ -137,7 +137,7 @@ __attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key
   return res;
 #else
   (void)type;
-  (void)priv_key;
+  (void)key;
   return 0;
 #endif
 }
@@ -164,14 +164,13 @@ __attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
   mbedtls_ecp_point_free(&pnt);
 #else
   (void)type;
-  (void)priv_key;
-  (void)pub_key;
+  (void)key;
 #endif
   return 0;
 }
 
 __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const uint8_t *receiver_pub_key,
-                                       uint8_t *out) {
+                               uint8_t *out) {
 #ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
