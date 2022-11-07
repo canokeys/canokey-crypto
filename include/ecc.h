@@ -15,6 +15,8 @@ typedef struct {
   uint8_t pub[MAX_EC_PUBLIC_KEY];
 } ecc_key_t;
 
+void swap_big_number_endian(uint8_t buf[32]);
+
 /**
  * Generate an ECDSA key pair
  *

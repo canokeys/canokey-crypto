@@ -22,6 +22,14 @@ static const uint8_t grp_id[] = {
 static const K__ed25519_public_key gx = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9};
 
+void swap_big_number_endian(uint8_t buf[32]) {
+  for (int i = 0; i < 16; ++i) {
+    uint8_t tmp = buf[31 - i];
+    buf[31 - i] = buf[i];
+    buf[i] = tmp;
+  }
+}
+
 __attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
@@ -189,7 +197,11 @@ __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const u
       mbedtls_ecp_point_free(&pnt);
     } else { // ed25519 & x25519
       if (type == ED25519) return -1;
-      K__x25519(out, priv_key, receiver_pub_key);
+      uint8_t pub[32];
+      memcpy(pub, receiver_pub_key, 32);
+      swap_big_number_endian(pub);
+      K__x25519(out, priv_key, pub);
+      swap_big_number_endian(out);
     }
 #else
   (void)type;
