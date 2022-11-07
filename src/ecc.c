@@ -81,7 +81,9 @@ __attribute__((weak)) int ecc_sign(key_type_t type, const ecc_key_t *key, const 
     mbedtls_ecp_group_free(&grp);
   } else { // ed25519 & x25519
     if (type == X25519) return -1;
-    K__ed25519_sign(data_or_digest, len, key->pri, key->pub, sig);
+    K__ed25519_signature sig_buf;
+    K__ed25519_sign(data_or_digest, len, key->pri, key->pub, sig_buf);
+    memcpy(sig, sig_buf, SIGNATURE_LENGTH[ED25519]);
   }
 #else
   (void)type;
