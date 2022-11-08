@@ -11,12 +11,15 @@ typedef enum {
   RSA2048,
   RSA3072,
   RSA4096,
-  KEY_TYPE_END,
+  KEY_TYPE_PKC_END,
+  TDEA,
+  AES128,
+  AES256,
 } key_type_t;
 
-extern int PRIVATE_KEY_LENGTH[KEY_TYPE_END];
-extern int PUBLIC_KEY_LENGTH[KEY_TYPE_END];
-extern int SIGNATURE_LENGTH[KEY_TYPE_END];
+extern int PRIVATE_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern int PUBLIC_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern int SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
 
 #define IS_ECC(type) ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SM2 || (type) == ED25519 || (type) == X25519)
 #define IS_SHORT_WEIERSTRASS(type) ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SM2)
