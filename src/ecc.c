@@ -5,6 +5,7 @@
 #include <string.h>
 
 #ifdef USE_MBEDCRYPTO
+#include <mbedtls/bn_mul.h>
 #include <mbedtls/ecdsa.h>
 
 typedef unsigned char K__ed25519_signature[64];
@@ -17,6 +18,238 @@ static const uint8_t grp_id[] = {
     [SECP256K1] = MBEDTLS_ECP_DP_SECP256K1,
     [SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
 };
+
+/* SM2 uses 256 bit unsigned integers in big endian format */
+#define SM2_INT_SIZE_BYTES 32
+
+static const mbedtls_mpi_uint sm2_p[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF),
+};
+static const mbedtls_mpi_uint sm2_a[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF),
+};
+static const mbedtls_mpi_uint sm2_b[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0x93, 0x0E, 0x94, 0x4D, 0x41, 0xBD, 0xBC, 0xDD),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x92, 0x8F, 0xAB, 0x15, 0xF5, 0x89, 0x97, 0xF3),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xA7, 0x09, 0x65, 0xCF, 0x4B, 0x9E, 0x5A, 0x4D),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x34, 0x5E, 0x9F, 0x9D, 0x9E, 0xFA, 0xE9, 0x28),
+};
+static const mbedtls_mpi_uint sm2_gx[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0xC7, 0x74, 0x4C, 0x33, 0x89, 0x45, 0x5A, 0x71),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xE1, 0x0B, 0x66, 0xF2, 0xBF, 0x0B, 0xE3, 0x8F),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x94, 0xC9, 0x39, 0x6A, 0x46, 0x04, 0x99, 0x5F),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x19, 0x81, 0x19, 0x1F, 0x2C, 0xAE, 0xC4, 0x32),
+};
+static const mbedtls_mpi_uint sm2_gy[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0xA0, 0xF0, 0x39, 0x21, 0xE5, 0x32, 0xDF, 0x02),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x40, 0x47, 0x2A, 0xC6, 0x7C, 0x87, 0xA9, 0xD0),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x53, 0x21, 0x69, 0x6B, 0xE3, 0xCE, 0xBD, 0x59),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x9C, 0x77, 0xF6, 0xF4, 0xA2, 0x36, 0x37, 0xBC),
+};
+static const mbedtls_mpi_uint sm2_n[] = {
+    MBEDTLS_BYTES_TO_T_UINT_8(0x23, 0x41, 0xD5, 0x39, 0x09, 0xF4, 0xBB, 0x53),
+    MBEDTLS_BYTES_TO_T_UINT_8(0x2B, 0x05, 0xC6, 0x21, 0x6B, 0xDF, 0x03, 0x72),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    MBEDTLS_BYTES_TO_T_UINT_8(0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF),
+};
+
+#define LOAD_GROUP_A(G)   ecp_group_load( &grp,            \
+                            G ## _p,  sizeof( G ## _p  ),   \
+                            G ## _a,  sizeof( G ## _a  ),   \
+                            G ## _b,  sizeof( G ## _b  ),   \
+                            G ## _gx, sizeof( G ## _gx ),   \
+                            G ## _gy, sizeof( G ## _gy ),   \
+                            G ## _n,  sizeof( G ## _n  ) )
+
+/*
+ * Create an MPI from embedded constants
+ * (assumes len is an exact multiple of sizeof mbedtls_mpi_uint)
+ */
+static inline void ecp_mpi_load(mbedtls_mpi *X, const mbedtls_mpi_uint *p, size_t len) {
+  X->s = 1;
+  X->n = len / sizeof(mbedtls_mpi_uint);
+  X->p = (mbedtls_mpi_uint *) p;
+}
+
+/*
+ * Set an MPI to static value 1
+ */
+static inline void ecp_mpi_set1(mbedtls_mpi *X) {
+  static mbedtls_mpi_uint one[] = {1};
+  X->s = 1;
+  X->n = 1;
+  X->p = one;
+}
+
+/*
+ * Make group available from embedded constants
+ */
+static int ecp_group_load(mbedtls_ecp_group *grp,
+                          const mbedtls_mpi_uint *p, size_t plen,
+                          const mbedtls_mpi_uint *a, size_t alen,
+                          const mbedtls_mpi_uint *b, size_t blen,
+                          const mbedtls_mpi_uint *gx, size_t gxlen,
+                          const mbedtls_mpi_uint *gy, size_t gylen,
+                          const mbedtls_mpi_uint *n, size_t nlen) {
+  ecp_mpi_load(&grp->P, p, plen);
+  if (a != NULL)
+    ecp_mpi_load(&grp->A, a, alen);
+  ecp_mpi_load(&grp->B, b, blen);
+  ecp_mpi_load(&grp->N, n, nlen);
+
+  ecp_mpi_load(&grp->G.X, gx, gxlen);
+  ecp_mpi_load(&grp->G.Y, gy, gylen);
+  ecp_mpi_set1(&grp->G.Z);
+
+  grp->pbits = mbedtls_mpi_bitlen(&grp->P);
+  grp->nbits = mbedtls_mpi_bitlen(&grp->N);
+
+  grp->h = 1;
+
+  return (0);
+}
+
+/* Generate random number 1 <= n < max */
+static int mbed_gen_random_upto(mbedtls_mpi *n, mbedtls_mpi *max) {
+  size_t sz = mbedtls_mpi_size(max);
+  int found = 0;
+  int mres = 0;
+
+  do {
+    mres = mbedtls_mpi_fill_random(n, sz, mbedtls_rnd, NULL);
+    if (mres)
+      return 1;
+    if (mbedtls_mpi_bitlen(n) != 0 &&
+        mbedtls_mpi_cmp_mpi(n, max) == -1)
+      found = 1;
+  } while (!found);
+
+  return 0;
+}
+
+/*
+ * GM/T 0003.1‒2012 Part1 2 Section 6.1
+ */
+int sm2_mbedtls_dsa_sign(uint32_t algo __unused, mbedtls_mpi *key,
+                         const uint8_t *msg, size_t msg_len,
+                         uint8_t *sig, size_t *sig_len) {
+  int res = 0;
+  mbedtls_ecp_group grp = {};
+  mbedtls_ecp_point x1y1p = {};
+  int mres = 0;
+  mbedtls_mpi k = {};
+  mbedtls_mpi e = {};
+  mbedtls_mpi r = {};
+  mbedtls_mpi s = {};
+  mbedtls_mpi tmp = {};
+
+  if (*sig_len < 2 * SM2_INT_SIZE_BYTES) {
+    *sig_len = 64;
+    return -1;
+  }
+
+  mbedtls_mpi_init(&k);
+  mbedtls_mpi_init(&e);
+  mbedtls_mpi_init(&r);
+  mbedtls_mpi_init(&s);
+  mbedtls_mpi_init(&tmp);
+
+  mbedtls_ecp_point_init(&x1y1p);
+
+  mbedtls_ecp_group_init(&grp);
+  mres = LOAD_GROUP_A(sm2);
+  if (mres) {
+    res = -1;
+    goto out;
+  }
+
+  /*
+   * Steps A1 and A2 are the generation of the hash value e from user
+   * information (ZA) and the message to be signed (M). There are not done
+   * here since @msg is expected to be the hash value e already.
+   */
+
+  /* Step A3: generate random number 1 <= k < n */
+  do {
+    res = mbed_gen_random_upto(&k, &grp.N);
+    if (res)
+      goto out;
+
+    res = -1;
+
+    /* Step A4: compute (x1, y1) = [k]G */
+    mres = mbedtls_ecp_mul(&grp, &x1y1p, &k, &grp.G, mbedtls_rnd,
+                           NULL);
+    if (mres)
+      goto out;
+
+    /* Step A5: compute r = (e + x1) mod n */
+    mbedtls_mpi_read_binary(&e, (unsigned char *) msg, msg_len);
+    mres = mbedtls_mpi_add_mpi(&r, &e, &x1y1p.X);
+    if (mres)
+      goto out;
+    mres = mbedtls_mpi_mod_mpi(&r, &r, &grp.N);
+    if (mres)
+      goto out;
+
+    /* Step A5 (continued): return to A3 if r = 0 or r + k = n */
+    mres = mbedtls_mpi_add_mpi(&tmp, &r, &k);
+    if (mres)
+      goto out;
+  } while (!mbedtls_mpi_cmp_int(&r, 0) ||
+           !mbedtls_mpi_cmp_mpi(&tmp, &grp.N));
+
+  /* Step A6: compute s = ((1 + dA)^-1 * (k - r*dA)) mod n */
+  mres = mbedtls_mpi_add_int(&s, key, 1);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_inv_mod(&s, &s, &grp.N);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_mul_mpi(&tmp, &r, key);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_mod_mpi(&tmp, &tmp, &grp.N);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_sub_mpi(&tmp, &k, &tmp);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_mul_mpi(&s, &s, &tmp);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_mod_mpi(&s, &s, &grp.N);
+  if (mres)
+    goto out;
+
+  /* Step A7: convert (r, s) to binary for output */
+  *sig_len = 2 * SM2_INT_SIZE_BYTES;
+  memset(sig, 0, *sig_len);
+  mres = mbedtls_mpi_write_binary(&r, sig, SM2_INT_SIZE_BYTES);
+  if (mres)
+    goto out;
+  mres = mbedtls_mpi_write_binary(&s, sig + SM2_INT_SIZE_BYTES,
+                                  SM2_INT_SIZE_BYTES);
+  if (mres)
+    goto out;
+
+  res = 0;
+  out:
+  mbedtls_ecp_point_free(&x1y1p);
+  mbedtls_mpi_free(&k);
+  mbedtls_mpi_free(&e);
+  mbedtls_mpi_free(&r);
+  mbedtls_mpi_free(&s);
+  mbedtls_mpi_free(&tmp);
+  mbedtls_ecp_group_free(&grp);
+  return res;
+}
 #endif
 
 static const K__ed25519_public_key gx = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -35,7 +268,33 @@ __attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
-    if (type == SM2) return -1; // TODO: support SM2
+    if (type == SM2){
+      int res = 0;
+      mbedtls_ecp_group grp = {};
+      mbedtls_ecp_point x1y1p = {};
+      int mres = 0;
+      mbedtls_mpi k = {};
+      mbedtls_mpi_init(&k);
+      mbedtls_ecp_point_init(&x1y1p);
+      mbedtls_ecp_group_init(&grp);
+      mres = LOAD_GROUP_A(sm2);
+      do {
+        res = mbed_gen_random_upto(&k, &grp.N);
+        if (res) goto out;
+        res = -1;
+        mres = mbedtls_ecp_mul(&grp, &x1y1p, &k, &grp.G, mbedtls_rnd, NULL);
+        if (mres) goto out;
+      } while (!mbedtls_mpi_cmp_mpi(&k, &grp.N));
+      res = 0;
+      mbedtls_mpi_write_binary(&k, key->pri, SM2_INT_SIZE_BYTES);
+      mbedtls_mpi_write_binary(&x1y1p.X, key->pub, SM2_INT_SIZE_BYTES);
+      mbedtls_mpi_write_binary(&x1y1p.Y, key->pub + SM2_INT_SIZE_BYTES, SM2_INT_SIZE_BYTES);
+      out:
+      mbedtls_ecp_point_free(&x1y1p);
+      mbedtls_mpi_free(&k);
+      mbedtls_ecp_group_free(&grp);
+      return res;
+    }
 
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -68,7 +327,15 @@ __attribute__((weak)) int ecc_sign(key_type_t type, const ecc_key_t *key, const 
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
-    if (type == SM2) return -1; // TODO: support SM2
+    if (type == SM2) {
+      mbedtls_mpi bn;
+      mbedtls_mpi_init(&bn);
+      mbedtls_mpi_read_binary(&bn, key->pri, PRIVATE_KEY_LENGTH[type]);
+      size_t sig_len = 64;
+      int ret = sm2_mbedtls_dsa_sign(0, &bn, data_or_digest, len, sig, &sig_len);
+      mbedtls_mpi_free(&bn);
+      return ret;
+    }
 
     mbedtls_mpi r, s, d;
     mbedtls_ecp_group grp;
@@ -107,14 +374,16 @@ __attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
-    if (type == SM2) return -1; // TODO: support SM2
-
     mbedtls_mpi d;
     mbedtls_ecp_group grp;
     mbedtls_mpi_init(&d);
     mbedtls_ecp_group_init(&grp);
 
-    mbedtls_ecp_group_load(&grp, grp_id[type]);
+    if (type == SM2) {
+      LOAD_GROUP_A(sm2);
+    } else {
+      mbedtls_ecp_group_load(&grp, grp_id[type]);
+    }
     mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
     int res = mbedtls_ecp_check_privkey(&grp, &d) == 0 ? 1 : 0;
 
@@ -136,8 +405,6 @@ __attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
-    if (type == SM2) return -1; // TODO: support SM2
-
     mbedtls_mpi d;
     mbedtls_ecp_group grp;
     mbedtls_ecp_point pnt;
@@ -145,7 +412,11 @@ __attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
     mbedtls_ecp_group_init(&grp);
     mbedtls_ecp_point_init(&pnt);
 
-    mbedtls_ecp_group_load(&grp, grp_id[type]);
+    if (type == SM2) {
+      LOAD_GROUP_A(sm2);
+    } else {
+      mbedtls_ecp_group_load(&grp, grp_id[type]);
+    }
     mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
     mbedtls_ecp_mul(&grp, &pnt, &d, &grp.G, mbedtls_rnd, NULL);
     mbedtls_mpi_write_binary(&pnt.X, key->pub, PRIVATE_KEY_LENGTH[type]);
@@ -173,36 +444,38 @@ __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const u
 #ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
-    if (IS_SHORT_WEIERSTRASS(type)) {
-      if (type == SM2) return -1; // TODO: support SM2
+  if (IS_SHORT_WEIERSTRASS(type)) {
+    mbedtls_mpi d;
+    mbedtls_ecp_group grp;
+    mbedtls_ecp_point pnt;
+    mbedtls_mpi_init(&d);
+    mbedtls_ecp_group_init(&grp);
+    mbedtls_ecp_point_init(&pnt);
 
-      mbedtls_mpi d;
-      mbedtls_ecp_group grp;
-      mbedtls_ecp_point pnt;
-      mbedtls_mpi_init(&d);
-      mbedtls_ecp_group_init(&grp);
-      mbedtls_ecp_point_init(&pnt);
-
+    if (type == SM2) {
+      LOAD_GROUP_A(sm2);
+    } else {
       mbedtls_ecp_group_load(&grp, grp_id[type]);
-      mbedtls_mpi_read_binary(&d, priv_key, PRIVATE_KEY_LENGTH[type]);
-      mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, PRIVATE_KEY_LENGTH[type]);
-      mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
-      mbedtls_mpi_lset(&pnt.Z, 1);
-      mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL);
-      mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]);
-      mbedtls_mpi_write_binary(&pnt.Y, out + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
-
-      mbedtls_mpi_free(&d);
-      mbedtls_ecp_group_free(&grp);
-      mbedtls_ecp_point_free(&pnt);
-    } else { // ed25519 & x25519
-      if (type == ED25519) return -1;
-      uint8_t pub[32];
-      memcpy(pub, receiver_pub_key, 32);
-      swap_big_number_endian(pub);
-      K__x25519(out, priv_key, pub);
-      swap_big_number_endian(out);
     }
+    mbedtls_mpi_read_binary(&d, priv_key, PRIVATE_KEY_LENGTH[type]);
+    mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, PRIVATE_KEY_LENGTH[type]);
+    mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
+    mbedtls_mpi_lset(&pnt.Z, 1);
+    mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL);
+    mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]);
+    mbedtls_mpi_write_binary(&pnt.Y, out + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
+
+    mbedtls_mpi_free(&d);
+    mbedtls_ecp_group_free(&grp);
+    mbedtls_ecp_point_free(&pnt);
+  } else { // ed25519 & x25519
+    if (type == ED25519) return -1;
+    uint8_t pub[32];
+    memcpy(pub, receiver_pub_key, 32);
+    swap_big_number_endian(pub);
+    K__x25519(out, priv_key, pub);
+    swap_big_number_endian(out);
+  }
 #else
   (void)type;
   (void)priv_key;
