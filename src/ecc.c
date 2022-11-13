@@ -136,7 +136,7 @@ static int mbed_gen_random_upto(mbedtls_mpi *n, mbedtls_mpi *max) {
 /*
  * GM/T 0003.1‒2012 Part1 2 Section 6.1
  */
-int sm2_mbedtls_dsa_sign(uint32_t algo __unused, mbedtls_mpi *key,
+int sm2_mbedtls_dsa_sign(uint32_t algo, mbedtls_mpi *key,
                          const uint8_t *msg, size_t msg_len,
                          uint8_t *sig, size_t *sig_len) {
   int res = 0;
