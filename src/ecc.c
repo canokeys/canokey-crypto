@@ -255,6 +255,12 @@ int sm2_mbedtls_dsa_sign(uint32_t algo, mbedtls_mpi *key,
 static const K__ed25519_public_key gx = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9};
 
+static void x25519_key_from_random(K__x25519_key private_key) {
+  private_key[31] &= 0xf8;
+  private_key[0] &= 0x7f;
+  private_key[0] |= 0x40;
+}
+
 void swap_big_number_endian(uint8_t buf[32]) {
   for (int i = 0; i < 16; ++i) {
     uint8_t tmp = buf[31 - i];
@@ -264,11 +270,11 @@ void swap_big_number_endian(uint8_t buf[32]) {
 }
 
 __attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
-#ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
-    if (type == SM2){
+#ifdef USE_MBEDCRYPTO
+    if (type == SM2) {
       int res = 0;
       mbedtls_ecp_group grp = {};
       mbedtls_ecp_point x1y1p = {};
@@ -289,7 +295,7 @@ __attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
       mbedtls_mpi_write_binary(&k, key->pri, SM2_INT_SIZE_BYTES);
       mbedtls_mpi_write_binary(&x1y1p.X, key->pub, SM2_INT_SIZE_BYTES);
       mbedtls_mpi_write_binary(&x1y1p.Y, key->pub + SM2_INT_SIZE_BYTES, SM2_INT_SIZE_BYTES);
-      out:
+    out:
       mbedtls_ecp_point_free(&x1y1p);
       mbedtls_mpi_free(&k);
       mbedtls_ecp_group_free(&grp);
@@ -305,28 +311,27 @@ __attribute__((weak)) int ecc_generate(key_type_t type, ecc_key_t *key) {
     mbedtls_mpi_write_binary(&keypair.Q.Y, key->pub + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
     mbedtls_ecp_keypair_free(&keypair);
+#else
+    return K__short_weierstrass_generate(type, key);
+#endif
   } else { // ed25519 & x25519
     random_buffer(key->pri, PRIVATE_KEY_LENGTH[type]);
     if (type == ED25519) {
       K__ed25519_publickey(key->pri, key->pub);
     } else {
-      K__x25519_key_from_random(key->pri);
+      x25519_key_from_random(key->pri);
       K__x25519(key->pub, key->pri, gx);
     }
+    return 0;
   }
-#else
-  (void)type;
-  (void)key;
-#endif
-  return 0;
 }
 
 __attribute__((weak)) int ecc_sign(key_type_t type, const ecc_key_t *key, const uint8_t *data_or_digest, size_t len,
                                    uint8_t *sig) {
-#ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
+#ifdef USE_MBEDCRYPTO
     if (type == SM2) {
       mbedtls_mpi bn;
       mbedtls_mpi_init(&bn);
@@ -354,26 +359,23 @@ __attribute__((weak)) int ecc_sign(key_type_t type, const ecc_key_t *key, const 
     mbedtls_mpi_free(&s);
     mbedtls_mpi_free(&d);
     mbedtls_ecp_group_free(&grp);
+#else
+    return K__short_weierstrass_sign(type, key, data_or_digest, len, sig);
+#endif
   } else { // ed25519 & x25519
     if (type == X25519) return -1;
     K__ed25519_signature sig_buf;
     K__ed25519_sign(data_or_digest, len, key->pri, key->pub, sig_buf);
     memcpy(sig, sig_buf, SIGNATURE_LENGTH[ED25519]);
+    return 0;
   }
-#else
-  (void)type;
-  (void)key;
-  (void)data_or_digest;
-  (void)sig;
-#endif
-  return 0;
 }
 
 __attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key) {
-#ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
+#ifdef USE_MBEDCRYPTO
     mbedtls_mpi d;
     mbedtls_ecp_group grp;
     mbedtls_mpi_init(&d);
@@ -390,21 +392,19 @@ __attribute__((weak)) int ecc_verify_private_key(key_type_t type, ecc_key_t *key
     mbedtls_mpi_free(&d);
     mbedtls_ecp_group_free(&grp);
     return res;
+#else
+    return K__short_weierstrass_verify_private_key(type, key);
+#endif
   } else { // ed25519 & x25519
     return 1;
   }
-#else
-  (void)type;
-  (void)key;
-  return 0;
-#endif
 }
 
 __attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
-#ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
+#ifdef USE_MBEDCRYPTO
     mbedtls_mpi d;
     mbedtls_ecp_group grp;
     mbedtls_ecp_point pnt;
@@ -425,26 +425,25 @@ __attribute__((weak)) int ecc_complete_key(key_type_t type, ecc_key_t *key) {
     mbedtls_mpi_free(&d);
     mbedtls_ecp_group_free(&grp);
     mbedtls_ecp_point_free(&pnt);
+#else
+    return K__short_weierstrass_complete_key(type, key);
+#endif
   } else { // ed25519 & x25519
     if (type == ED25519) {
       K__ed25519_publickey(key->pri, key->pub);
     } else {
       K__x25519(key->pub, key->pri, gx);
     }
+    return 0;
   }
-#else
-  (void)type;
-  (void)key;
-#endif
-  return 0;
 }
 
 __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const uint8_t *receiver_pub_key,
                                uint8_t *out) {
-#ifdef USE_MBEDCRYPTO
   if (!IS_ECC(type)) return -1;
 
   if (IS_SHORT_WEIERSTRASS(type)) {
+#ifdef USE_MBEDCRYPTO
     mbedtls_mpi d;
     mbedtls_ecp_group grp;
     mbedtls_ecp_point pnt;
@@ -468,6 +467,9 @@ __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const u
     mbedtls_mpi_free(&d);
     mbedtls_ecp_group_free(&grp);
     mbedtls_ecp_point_free(&pnt);
+#else
+    return K__short_weierstrass_ecdh(type, priv_key, receiver_pub_key, out);
+#endif
   } else { // ed25519 & x25519
     if (type == ED25519) return -1;
     uint8_t pub[32];
@@ -475,14 +477,8 @@ __attribute__((weak)) int ecdh(key_type_t type, const uint8_t *priv_key, const u
     swap_big_number_endian(pub);
     K__x25519(out, priv_key, pub);
     swap_big_number_endian(out);
+    return 0;
   }
-#else
-  (void)type;
-  (void)priv_key;
-  (void)receiver_pub_key;
-  (void)out;
-#endif
-  return 0;
 }
 
 size_t ecdsa_sig2ansi(uint8_t key_len, const uint8_t *input, uint8_t *output) {
@@ -645,12 +641,6 @@ __attribute__((weak)) void K__ed25519_sign(const unsigned char *m, size_t mlen, 
   (void)pk;
   (void)rs;
 #endif
-}
-
-void K__x25519_key_from_random(K__x25519_key private_key) {
-  private_key[31] &= 0xf8;
-  private_key[0] &= 0x7f;
-  private_key[0] |= 0x40;
 }
 
 __attribute__((weak)) void K__x25519(K__x25519_key shared_secret, const K__x25519_key private_key,

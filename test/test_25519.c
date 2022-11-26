@@ -7,6 +7,12 @@
 #include "sha.h"
 #include <cmocka.h>
 
+static void x25519_key_from_random(K__x25519_key private_key) {
+  private_key[31] &= 0xf8;
+  private_key[0] &= 0x7f;
+  private_key[0] |= 0x40;
+}
+
 static void test_ed25519_public(void **state) {
   (void)state;
   // from rfc8032 test 1
@@ -131,7 +137,7 @@ static void test_cv25519_decrypt(void **state) {
                         0x25, 0x0f, 0x35, 0x80, 0xf4, 0x3b, 0x8e, 0x72,
                         0xe1, 0x2d, 0xce, 0xa4, 0x5b, 0x9d, 0x5d, 0x4a};
 
-  K__x25519_key_from_random(sk);
+  x25519_key_from_random(sk);
   K__x25519(out, sk, input);
 
   for (int i = 0; i != 32; ++i) {
