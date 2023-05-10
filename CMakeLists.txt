@@ -17,6 +17,11 @@ if (USE_MBEDCRYPTO)
     execute_process(COMMAND patch -p1 -u
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls
         INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mbedtls-ed25519.patch)
+    if(${APPLE})
+        execute_process(COMMAND patch -p1 -u
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls
+            INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mbedtls-apple.patch)
+    endif()
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls)
 endif (USE_MBEDCRYPTO)
 
