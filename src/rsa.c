@@ -48,11 +48,12 @@ cleanup:
   mbedtls_rsa_free(&rsa);
 #else
   (void)key;
+  (void)nbits;
 #endif
   return ret;
 }
 
-__attribute__((weak)) int rsa_get_public_key(const rsa_key_t *key, uint8_t *n) {
+__attribute__((weak)) int rsa_get_public_key(rsa_key_t *key, uint8_t *n) {
   int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
@@ -74,11 +75,12 @@ cleanup:
   mbedtls_rsa_free(&rsa);
 #else
   (void)key;
+  (void)n;
 #endif
   return ret;
 }
 
-__attribute__((weak)) int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output) {
+__attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output) {
   int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
