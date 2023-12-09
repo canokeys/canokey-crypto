@@ -80,7 +80,7 @@ cleanup:
   return ret;
 }
 
-__attribute__((weak)) int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output) {
+__attribute__((weak)) int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output) {
   int ret = 0;
 #ifdef USE_MBEDCRYPTO
   mbedtls_rsa_context rsa;
@@ -108,7 +108,7 @@ cleanup:
   return ret;
 }
 
-int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig) {
+int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, const size_t len, uint8_t *sig) {
   if (pkcs1_v15_add_padding(data, len, sig, key->nbits / 8) < 0) return -1;
   return rsa_private(key, sig, sig);
 }
@@ -116,7 +116,7 @@ int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, size_t len, uin
 int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out, uint8_t *invalid_padding) {
   *invalid_padding = 0;
   if (rsa_private(key, in, out) < 0) return -1;
-  int len = pkcs1_v15_remove_padding(out, key->nbits / 8, out);
+  const int len = pkcs1_v15_remove_padding(out, key->nbits / 8, out);
   if (len < 0) {
     *invalid_padding = 1;
     return -1;

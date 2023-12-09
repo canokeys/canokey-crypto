@@ -49,7 +49,7 @@ int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
  *
  * @return 0 on success.
  */
-int rsa_private(rsa_key_t *key, const uint8_t *input, uint8_t *output);
+int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output);
 
 int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
 

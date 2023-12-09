@@ -392,7 +392,7 @@ __attribute__((weak)) int K__short_weierstrass_generate(key_type_t type, ecc_key
   return 0;
 }
 
-__attribute__((weak)) int K__short_weierstrass_verify_private_key(key_type_t type, ecc_key_t *key) {
+__attribute__((weak)) int K__short_weierstrass_verify_private_key(key_type_t type, const ecc_key_t *key) {
 #ifdef USE_MBEDCRYPTO
   mbedtls_mpi d;
   mbedtls_ecp_group grp;

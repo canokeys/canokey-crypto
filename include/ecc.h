@@ -103,7 +103,7 @@ int K__short_weierstrass_generate(key_type_t type, ecc_key_t *key);
  *
  * @return 1: verified, 0: not verified
  */
-int K__short_weierstrass_verify_private_key(key_type_t type, ecc_key_t *key);
+int K__short_weierstrass_verify_private_key(const key_type_t type, const ecc_key_t *key);
 
 /**
  * Compute the corresponding public key using the private key
