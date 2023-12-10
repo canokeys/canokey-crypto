@@ -1,6 +1,8 @@
 #ifndef CANOKEY_CRYPTO_ALGO_H
 #define CANOKEY_CRYPTO_ALGO_H
 
+#include <stddef.h>
+
 typedef enum {
   SECP256R1,
   SECP256K1,
@@ -17,9 +19,9 @@ typedef enum {
   AES256,
 } key_type_t;
 
-extern const int PRIVATE_KEY_LENGTH[KEY_TYPE_PKC_END];
-extern const int PUBLIC_KEY_LENGTH[KEY_TYPE_PKC_END];
-extern const int SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
+extern const size_t PRIVATE_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern const size_t PUBLIC_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern const size_t SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
 
 #define IS_ECC(type) ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SM2 || (type) == ED25519 || (type) == X25519)
 #define IS_SHORT_WEIERSTRASS(type) ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SM2)
