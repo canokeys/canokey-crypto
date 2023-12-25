@@ -3,7 +3,6 @@
 #define CANOKEY_CRYPTO_ECC_H
 
 #include <algo.h>
-#include <sha.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -14,6 +13,8 @@ typedef struct {
   uint8_t pri[MAX_EC_PRIVATE_KEY];
   uint8_t pub[MAX_EC_PUBLIC_KEY];
 } ecc_key_t;
+
+extern const uint8_t SM2_ID_DEFAULT[];
 
 void swap_big_number_endian(uint8_t buf[32]);
 
