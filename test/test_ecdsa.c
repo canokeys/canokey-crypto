@@ -157,6 +157,24 @@ static void test_sig2ansi(void **state) {
   }
 }
 
+static void test_sm2_z(void **state) {
+  (void)state;
+  const uint8_t id[] = {16, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+                        0x38};
+  const uint8_t expected[32] = {0x60, 0xf6, 0x87, 0x2d, 0x8b, 0xa1, 0x55, 0x15, 0x59, 0xe0, 0x27, 0x04, 0x82, 0x3c,
+                                0xb3, 0x55, 0xb4, 0x4c, 0xd4, 0xc1, 0x81, 0xd7, 0xfa, 0xf4, 0x1b, 0xe4, 0x24, 0x7c,
+                                0x99, 0xf7, 0xe2, 0xb0};
+  uint8_t out[32];
+  ecc_key_t key;
+  memcpy(key.pub, "\x10\x2a\xe6\xa8\x42\x4f\x20\xaf\xb7\xfb\x35\xde\xf5\x29\x78\x88\x24\x03\x98\x6e\x40\x5d\x0a\xa6\xc7"
+                  "\xf4\x36\xc4\x4d\x49\x95\x8c\xae\x1d\x93\x44\xf9\x36\x16\xab\xd9\x17\x10\x46\xb8\xf8\x3a\xdd\x6b\x4f"
+                  "\x1c\xcf\x86\x98\x74\x5f\xa3\x32\x57\x12\x37\x66\xa3\xc6", 64);
+  sm2_z(id, &key, out);
+  for (int i = 0; i != 32; ++i) {
+    assert_int_equal(out[i], expected[i]);
+  }
+}
+
 int main() {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_ecc_keygen),
@@ -165,6 +183,7 @@ int main() {
       cmocka_unit_test(test_ecc_get_public_key),
       cmocka_unit_test(test_ecdh),
       cmocka_unit_test(test_sig2ansi),
+      cmocka_unit_test(test_sm2_z),
   };
 
   return cmocka_run_group_tests(tests, NULL, NULL);
