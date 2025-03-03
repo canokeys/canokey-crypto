@@ -22,6 +22,7 @@ static const uint8_t grp_id[] = {
     [SECP256R1] = MBEDTLS_ECP_DP_SECP256R1,
     [SECP256K1] = MBEDTLS_ECP_DP_SECP256K1,
     [SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
+    [SECP521R1] = MBEDTLS_ECP_DP_SECP521R1,
 };
 
 /* SM2 uses 256 bit unsigned integers in big endian format */
