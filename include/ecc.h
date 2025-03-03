@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_EC_PRIVATE_KEY 68
+#define MAX_EC_PRIVATE_KEY 66
 #define MAX_EC_PUBLIC_KEY 132
 
 typedef struct {
