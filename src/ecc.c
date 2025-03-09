@@ -498,7 +498,11 @@ __attribute__((weak)) int K__short_weierstrass_sign(key_type_t type, const ecc_k
 
   mbedtls_ecp_group_load(&grp, grp_id[type]);
   mbedtls_mpi_read_binary(&d, key->pri, PRIVATE_KEY_LENGTH[type]);
-  mbedtls_ecdsa_sign(&grp, &r, &s, &d, data_or_digest, PRIVATE_KEY_LENGTH[type], mbedtls_rnd, NULL);
+  if (type == SECP521R1) {
+    mbedtls_ecdsa_sign(&grp, &r, &s, &d, data_or_digest + 1, PRIVATE_KEY_LENGTH[type] - 1, mbedtls_rnd, NULL);
+  } else {
+    mbedtls_ecdsa_sign(&grp, &r, &s, &d, data_or_digest, PRIVATE_KEY_LENGTH[type], mbedtls_rnd, NULL);
+  }
   mbedtls_mpi_write_binary(&r, sig, PRIVATE_KEY_LENGTH[type]);
   mbedtls_mpi_write_binary(&s, sig + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
 
