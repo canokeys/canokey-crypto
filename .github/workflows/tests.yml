@@ -13,7 +13,7 @@ jobs:
         sudo pip install cpp-coveralls
 
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     
@@ -35,7 +35,7 @@ jobs:
         lcov --base-directory . --directory . -c -o ./coverage/lcov.info
 
     - name: Coveralls
-      uses: coverallsapp/github-action@master
+      uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
