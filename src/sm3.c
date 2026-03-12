@@ -145,7 +145,6 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64]) {
   }
   for (j = 16; j < 68; j++) {
     W[j] = P1(W[j - 16] ^ W[j - 9] ^ ROTATELEFT(W[j - 3], 15)) ^ ROTATELEFT(W[j - 13], 7) ^ W[j - 6];
-    ;
   }
   for (j = 0; j < 64; j++) {
     W1[j] = W[j] ^ W[j + 4];

@@ -42,7 +42,7 @@ int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
 
 /**
  * Compute private key operation, used in sign or decrypt.
- * 
+ *
  * @param key The given private key.
  * @param input Input data.
  * @param output Output data.
