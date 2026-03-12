@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include <ecc.h>
 #include <memzero.h>
 #include <rand.h>
@@ -9,8 +10,10 @@ const uint8_t SM2_ID_DEFAULT[] = {0x10, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
                                   0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38};
 
 #ifdef USE_MBEDCRYPTO
-#include <mbedtls/bn_mul.h>
-#include <mbedtls/ecdsa.h>
+#include <mbedtls/private/bignum.h>
+#include <mbedtls/private/ecdsa.h>
+#include <mbedtls/private/ecp.h>
+
 #include <sha.h>
 
 typedef unsigned char K__ed25519_signature[64];
@@ -24,6 +27,30 @@ static const uint8_t grp_id[] = {
     [SECP384R1] = MBEDTLS_ECP_DP_SECP384R1,
     [SECP521R1] = MBEDTLS_ECP_DP_SECP521R1,
 };
+
+/* Byte-to-mbedtls_mpi_uint conversion macros (from mbedtls internal bn_mul.h) */
+// clang-format off
+#if defined(MBEDTLS_HAVE_INT32)
+#define MBEDTLS_BYTES_TO_T_UINT_4(a, b, c, d)              \
+    ((mbedtls_mpi_uint) (a) <<  0) |                        \
+    ((mbedtls_mpi_uint) (b) <<  8) |                        \
+    ((mbedtls_mpi_uint) (c) << 16) |                        \
+    ((mbedtls_mpi_uint) (d) << 24)
+#define MBEDTLS_BYTES_TO_T_UINT_8(a, b, c, d, e, f, g, h)  \
+    MBEDTLS_BYTES_TO_T_UINT_4(a, b, c, d),                 \
+    MBEDTLS_BYTES_TO_T_UINT_4(e, f, g, h)
+#else /* 64-bits */
+#define MBEDTLS_BYTES_TO_T_UINT_8(a, b, c, d, e, f, g, h)  \
+    ((mbedtls_mpi_uint) (a) <<  0) |                        \
+    ((mbedtls_mpi_uint) (b) <<  8) |                        \
+    ((mbedtls_mpi_uint) (c) << 16) |                        \
+    ((mbedtls_mpi_uint) (d) << 24) |                        \
+    ((mbedtls_mpi_uint) (e) << 32) |                        \
+    ((mbedtls_mpi_uint) (f) << 40) |                        \
+    ((mbedtls_mpi_uint) (g) << 48) |                        \
+    ((mbedtls_mpi_uint) (h) << 56)
+#endif
+// clang-format on
 
 /* SM2 uses 256 bit unsigned integers in big endian format */
 #define SM2_INT_SIZE_BYTES 32
@@ -561,7 +588,7 @@ __attribute__((weak)) void K__ed25519_publickey(const K__ed25519_secret_key sk, 
   uint8_t digest[SHA512_DIGEST_LENGTH];
   sha512_raw(sk, sizeof(K__ed25519_secret_key), digest);
 
-  // normalize
+  // normalize (clamp)
   digest[0] &= 248;
   digest[31] &= 127;
   digest[31] |= 64;
@@ -571,25 +598,25 @@ __attribute__((weak)) void K__ed25519_publickey(const K__ed25519_secret_key sk, 
   mbedtls_ecp_group_init(&ed25519);
   mbedtls_ecp_group_load(&ed25519, MBEDTLS_ECP_DP_ED25519);
 
-  // load digest
+  // load scalar
   mbedtls_mpi s;
   mbedtls_mpi_init(&s);
   mbedtls_mpi_read_binary_le(&s, digest, 32);
 
   // P = s*B
-  mbedtls_ecp_point p;
-  mbedtls_ecp_point_init(&p);
-  mbedtls_ecp_mul(&ed25519, &p, &s, &ed25519.G, mbedtls_rnd, NULL);
+  mbedtls_ecp_point P;
+  mbedtls_ecp_point_init(&P);
+  mbedtls_ecp_mul(&ed25519, &P, &s, &ed25519.G, mbedtls_rnd, NULL);
 
-  // write result
-  size_t output_len;
-  mbedtls_ecp_point_write_binary(&ed25519, &p, MBEDTLS_ECP_PF_COMPRESSED, &output_len, pk,
-                                 sizeof(K__ed25519_public_key));
+  // write Y with X sign bit (RFC 8032 encoding)
+  mbedtls_mpi_write_binary_le(&P.Y, pk, 32);
+  if (mbedtls_mpi_get_bit(&P.X, 0)) {
+    pk[31] |= 0x80;
+  }
 
-  // cleanup
-  mbedtls_ecp_group_free(&ed25519);
+  mbedtls_ecp_point_free(&P);
   mbedtls_mpi_free(&s);
-  mbedtls_ecp_point_free(&p);
+  mbedtls_ecp_group_free(&ed25519);
 #else
   (void)sk;
   (void)pk;
@@ -598,76 +625,71 @@ __attribute__((weak)) void K__ed25519_publickey(const K__ed25519_secret_key sk, 
 
 __attribute__((weak)) void K__ed25519_sign(const unsigned char *m, size_t mlen, const K__ed25519_secret_key sk,
                                            const K__ed25519_public_key pk, K__ed25519_signature rs) {
-
 #ifdef USE_MBEDCRYPTO
-  // calc sha512 of sk
+  (void)pk; // we derive everything from sk
+
   uint8_t digest[SHA512_DIGEST_LENGTH];
   sha512_raw(sk, sizeof(K__ed25519_secret_key), digest);
-  // normalize
+
+  // clamp
   digest[0] &= 248;
   digest[31] &= 127;
   digest[31] |= 64;
 
-  // digest[0..32] is s, digest[32..64] is prefix
-
-  // sha512(prefix || m)
-  uint8_t digest_m[SHA512_DIGEST_LENGTH];
-  sha512_init();
-  sha512_update(digest + 32, 32);
-  sha512_update(m, mlen);
-  sha512_final(digest_m);
-
-  // init ed25519 group
   mbedtls_ecp_group ed25519;
   mbedtls_ecp_group_init(&ed25519);
   mbedtls_ecp_group_load(&ed25519, MBEDTLS_ECP_DP_ED25519);
 
-  // load digest_m into r
-  mbedtls_mpi r;
-  mbedtls_mpi_init(&r);
-  mbedtls_mpi_read_binary_le(&r, digest_m, SHA512_DIGEST_LENGTH);
+  // nonce: r = SHA-512(digest[32..63] || m) mod N
+  sha512_init();
+  sha512_update(digest + 32, 32);
+  sha512_update(m, mlen);
+  uint8_t nonce_hash[SHA512_DIGEST_LENGTH];
+  sha512_final(nonce_hash);
 
-  // P = r*B
+  mbedtls_mpi r, k, s;
+  mbedtls_mpi_init(&r);
+  mbedtls_mpi_init(&k);
+  mbedtls_mpi_init(&s);
+
+  mbedtls_mpi_read_binary_le(&r, nonce_hash, 64);
+  mbedtls_mpi_mod_mpi(&r, &r, &ed25519.N);
+
+  // R = r * B
   mbedtls_ecp_point p;
   mbedtls_ecp_point_init(&p);
   mbedtls_ecp_mul(&ed25519, &p, &r, &ed25519.G, mbedtls_rnd, NULL);
 
-  // write result to RS[0..32]
-  size_t output_len;
-  mbedtls_ecp_point_write_binary(&ed25519, &p, MBEDTLS_ECP_PF_COMPRESSED, &output_len, rs,
-                                 sizeof(K__ed25519_public_key));
+  // encode R into rs[0..31]
+  mbedtls_mpi_write_binary_le(&p.Y, rs, 32);
+  if (mbedtls_mpi_get_bit(&p.X, 0)) {
+    rs[31] |= 0x80;
+  }
 
-  // k = sha512(R, pk, m)
-  uint8_t digest_k[SHA512_DIGEST_LENGTH];
+  // compute public key A for hashing
+  K__ed25519_public_key pub;
+  K__ed25519_publickey(sk, pub);
+
+  // k = SHA-512(R || A || m) mod N
   sha512_init();
   sha512_update(rs, 32);
-  sha512_update(pk, sizeof(K__ed25519_public_key));
+  sha512_update(pub, 32);
   sha512_update(m, mlen);
-  sha512_final(digest_k);
+  sha512_final(nonce_hash);
 
-  mbedtls_mpi k;
-  mbedtls_mpi_init(&k);
-  mbedtls_mpi_read_binary_le(&k, digest_k, SHA512_DIGEST_LENGTH);
+  mbedtls_mpi_read_binary_le(&k, nonce_hash, 64);
   mbedtls_mpi_mod_mpi(&k, &k, &ed25519.N);
 
-  // s
-  mbedtls_mpi s;
-  mbedtls_mpi_init(&s);
+  // s = (r + k * a) mod N, where a is the clamped scalar
   mbedtls_mpi_read_binary_le(&s, digest, 32);
-  mbedtls_mpi_mod_mpi(&s, &s, &ed25519.N);
-
-  // k * s
   mbedtls_mpi_mul_mpi(&k, &k, &s);
   mbedtls_mpi_mod_mpi(&k, &k, &ed25519.N);
-
-  // r + k * s
   mbedtls_mpi_add_mpi(&k, &k, &r);
   mbedtls_mpi_mod_mpi(&k, &k, &ed25519.N);
 
-  // write result to RS[32..64]
+  // write S into rs[32..63]
   mbedtls_mpi_write_binary_le(&k, rs + 32, 32);
 
-  // cleanup
   mbedtls_ecp_group_free(&ed25519);
   mbedtls_mpi_free(&r);
   mbedtls_ecp_point_free(&p);

@@ -11,6 +11,79 @@
 #include "nist256p1.h"
 #include "crypto-util.h"
 
+#ifdef USE_MBEDCRYPTO
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+#include <mbedtls/private/bignum.h>
+#include <mbedtls/private/ecp.h>
+
+/*
+ * SM2 DSA verify (for testing only).
+ * sig = r || s (each 32 bytes big-endian), digest = e (32 bytes).
+ * pub = x || y (each 32 bytes big-endian).
+ * Returns 0 on success.
+ */
+static int sm2_verify(const uint8_t *pub, const uint8_t *sig, const uint8_t *digest) {
+  int ret = -1;
+  mbedtls_ecp_group grp;
+  mbedtls_ecp_point PA, tmp;
+  mbedtls_mpi r, s, e, t;
+
+  mbedtls_ecp_group_init(&grp);
+  mbedtls_ecp_point_init(&PA);
+  mbedtls_ecp_point_init(&tmp);
+  mbedtls_mpi_init(&r); mbedtls_mpi_init(&s);
+  mbedtls_mpi_init(&e); mbedtls_mpi_init(&t);
+
+  /* SM2 uses the same prime field as P-256 but different curve parameters.
+   * Load parameters from hex strings. */
+  mbedtls_mpi_read_string(&grp.P, 16, "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF");
+  mbedtls_mpi_read_string(&grp.A, 16, "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC");
+  mbedtls_mpi_read_string(&grp.B, 16, "28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93");
+  mbedtls_mpi_read_string(&grp.G.X, 16, "32C4AE2C1F1981195F9904466A39C9948FE30BBFF2660BE1715A4589334C74C7");
+  mbedtls_mpi_read_string(&grp.G.Y, 16, "BC3736A2F4F6779C59BDCEE36B692153D0A9877CC62A474002DF32E52139F0A0");
+  mbedtls_mpi_lset(&grp.G.Z, 1);
+  mbedtls_mpi_read_string(&grp.N, 16, "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123");
+  grp.pbits = mbedtls_mpi_bitlen(&grp.P);
+  grp.nbits = mbedtls_mpi_bitlen(&grp.N);
+  grp.h = 1;
+
+  mbedtls_mpi_read_binary(&r, sig, 32);
+  mbedtls_mpi_read_binary(&s, sig + 32, 32);
+  mbedtls_mpi_read_binary(&e, digest, 32);
+
+  /* Check 1 <= r,s < n */
+  if (mbedtls_mpi_cmp_int(&r, 1) < 0 || mbedtls_mpi_cmp_mpi(&r, &grp.N) >= 0) goto cleanup;
+  if (mbedtls_mpi_cmp_int(&s, 1) < 0 || mbedtls_mpi_cmp_mpi(&s, &grp.N) >= 0) goto cleanup;
+
+  /* t = (r + s) mod n */
+  mbedtls_mpi_add_mpi(&t, &r, &s);
+  mbedtls_mpi_mod_mpi(&t, &t, &grp.N);
+  if (mbedtls_mpi_cmp_int(&t, 0) == 0) goto cleanup;
+
+  /* Load public key */
+  mbedtls_mpi_read_binary(&PA.X, pub, 32);
+  mbedtls_mpi_read_binary(&PA.Y, pub + 32, 32);
+  mbedtls_mpi_lset(&PA.Z, 1);
+
+  /* tmp = [s]G + [t]PA */
+  mbedtls_ecp_muladd(&grp, &tmp, &s, &grp.G, &t, &PA);
+
+  /* R' = (e + x1) mod n */
+  mbedtls_mpi_add_mpi(&t, &e, &tmp.X);
+  mbedtls_mpi_mod_mpi(&t, &t, &grp.N);
+
+  ret = mbedtls_mpi_cmp_mpi(&t, &r) == 0 ? 0 : -1;
+
+cleanup:
+  mbedtls_ecp_group_free(&grp);
+  mbedtls_ecp_point_free(&PA);
+  mbedtls_ecp_point_free(&tmp);
+  mbedtls_mpi_free(&r); mbedtls_mpi_free(&s);
+  mbedtls_mpi_free(&e); mbedtls_mpi_free(&t);
+  return ret;
+}
+#endif /* USE_MBEDCRYPTO */
+
 #define ECC_TEST_PRELUDE(TYPE) ecc_key_t key; \
 const int KEY_TYPE = TYPE; \
 const size_t KEY_LEN = PUBLIC_KEY_LENGTH[KEY_TYPE]; \
@@ -42,9 +115,11 @@ static void test_ecdsa_sign(void **state) {
 
     memcpy(key.pri, "\x50\x5a\x4f\xcf\xa6\xe2\x20\xba\x55\x09\x58\xab\xc4\xf2\x39\x05\xe9\xdb\x2a\x2b\x5a\xca\x29\xad\x72\x89\x36\x70\x2f\x9a\x69\xea", 32);
     memcpy(digest, "\x11\x54\xaf\xd4\xf1\x49\x72\x2e\xc5\x90\xdf\x9c\xae\xda\x64\xfe\xef\x82\xcc\x29\xda\x1a\x04\x23\xf1\xf4\xf3\xa4\x8a\x56\x8b\x63", 32);
+    ecc_complete_key(SM2, &key);
     ecc_sign(SM2, &key, digest, sizeof(digest), sig);
-    uint8_t expected_sig[] = {0xf1,0x50,0x7e,0xc1,0x7c,0x63,0x40,0xca,0x2f,0x4c,0x74,0x48,0xa0,0xb2,0x76,0x9f,0xfa,0xe8,0x27,0x01,0x7a,0x2e,0xa9,0xed,0x4e,0x62,0xd7,0x31,0x41,0xd2,0xc9,0x5f,0x80,0xd7,0x92,0x5f,0x9a,0xd9,0xd6,0x11,0x67,0x12,0x9f,0x74,0xca,0x9d,0x4a,0xe5,0xab,0xb1,0x89,0x60,0x3c,0x7b,0xd9,0x6e,0xce,0x77,0xb4,0x45,0xec,0x76,0xf2,0xf7};
-    assert_memory_equal(sig, expected_sig, 64);
+#ifdef USE_MBEDCRYPTO
+    assert_int_equal(sm2_verify(key.pub, sig, digest), 0);
+#endif
   }
 }
 

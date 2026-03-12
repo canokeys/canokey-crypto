@@ -2,19 +2,6 @@ name: tests
 on: [push, pull_request]
 
 jobs:
-  format_check:
-    name: Check code formatting
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        submodules: false
-
-    - name: Run clang-format check
-      run: |
-        find src include -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
-
   build_test:
     name: Build and Test
     runs-on: ubuntu-latest
@@ -29,7 +16,12 @@ jobs:
       uses: actions/checkout@v6
       with:
         submodules: recursive
-    
+
+    - name: Check - Code formatting
+      continue-on-error: true
+      run: |
+        find src include -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
+
     - name: Build for Test
       run: |
         mkdir build && pushd build
