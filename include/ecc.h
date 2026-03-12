@@ -137,7 +137,8 @@ int K__short_weierstrass_complete_key(key_type_t type, ecc_key_t *key);
  *
  * @return 0: Success, -1: Error
  */
-int K__short_weierstrass_sign(key_type_t type, const ecc_key_t *key, const uint8_t *data_or_digest, size_t len, uint8_t *sig);
+int K__short_weierstrass_sign(key_type_t type, const ecc_key_t *key, const uint8_t *data_or_digest, size_t len,
+                              uint8_t *sig);
 
 /**
  * Compute ECDH result
@@ -161,7 +162,7 @@ typedef unsigned char K__x25519_key[32];
  *
  * @param sk Input private key
  * @param pk Output public key
-*/
+ */
 void K__ed25519_publickey(const K__ed25519_secret_key sk, K__ed25519_public_key pk);
 
 /**
@@ -172,7 +173,7 @@ void K__ed25519_publickey(const K__ed25519_secret_key sk, K__ed25519_public_key 
  * @param sk Private key
  * @param pk Public key
  * @param rs Output signature
-*/
+ */
 void K__ed25519_sign(const unsigned char *m, size_t mlen, const K__ed25519_secret_key sk,
                      const K__ed25519_public_key pk, K__ed25519_signature rs);
 
@@ -184,7 +185,7 @@ void K__ed25519_sign(const unsigned char *m, size_t mlen, const K__ed25519_secre
  * @param shared_secret Shared secret in big endian
  * @param private_key Valid private key in big endian
  * @param public_key Public key in big endian
-*/
+ */
 void K__x25519(K__x25519_key shared_secret, const K__x25519_key private_key, const K__x25519_key public_key);
 
 #endif

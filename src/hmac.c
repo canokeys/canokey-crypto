@@ -43,7 +43,7 @@ void hmac_sha1_Init(HMAC_SHA1_CTX *hctx, const uint8_t *key, const size_t keylen
 }
 
 void hmac_sha1_Update(const HMAC_SHA1_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void) hctx;
+  (void)hctx;
   sha1_update(msg, msglen);
 }
 
@@ -81,7 +81,7 @@ void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key, const size_t ke
 }
 
 void hmac_sha256_Update(const HMAC_SHA256_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void) hctx;
+  (void)hctx;
   sha256_update(msg, msglen);
 }
 
@@ -119,7 +119,7 @@ void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key, const size_t ke
 }
 
 void hmac_sha512_Update(const HMAC_SHA512_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void) hctx;
+  (void)hctx;
   sha512_update(msg, msglen);
 }
 
