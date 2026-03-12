@@ -8,37 +8,34 @@ option(USE_MBEDCRYPTO "Use mbed-crypto as the crypto library" ON)
 
 if(USE_MBEDCRYPTO)
     add_definitions(-DUSE_MBEDCRYPTO)
-    set(USE_STATIC_MBEDTLS_LIBRARY ON CACHE BOOL "")
-    set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "")
-    set(USE_CRYPTO_SUBMODULE ON CACHE BOOL "")
+    set(USE_STATIC_TF_PSA_CRYPTO_LIBRARY ON CACHE BOOL "")
+    set(USE_SHARED_TF_PSA_CRYPTO_LIBRARY OFF CACHE BOOL "")
     set(ENABLE_PROGRAMS OFF CACHE BOOL "")
-    set(ENABLE_TESTING OFF CACHE BOOL "") # disable mbedtls tests
-    file(COPY mbedtls DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/patched)
+    set(ENABLE_TESTING OFF CACHE BOOL "")
+    # Patch tf-psa-crypto with Ed25519 Edwards curve support
     execute_process(
-        COMMAND patch -p1 -u
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls
-        INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mbedtls-ed25519.patch
+        COMMAND patch -p1 -N
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto
+        INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
+        RESULT_VARIABLE PATCH_RESULT
     )
-    if(${APPLE})
-        execute_process(
-            COMMAND patch -p1 -u
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls
-            INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mbedtls-apple.patch
-        )
-    endif()
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls)
+    add_definitions(-DMBEDTLS_ECP_DP_ED25519_ENABLED)
+    add_subdirectory(tf-psa-crypto)
 endif(USE_MBEDCRYPTO)
 
 file(GLOB SRC src/*.c)
 add_library(canokey-crypto ${SRC})
 if(USE_MBEDCRYPTO)
-    target_link_libraries(canokey-crypto ${MBEDTLS_TARGET_PREFIX}mbedcrypto)
+    target_link_libraries(canokey-crypto tfpsacrypto)
 endif(USE_MBEDCRYPTO)
 target_include_directories(canokey-crypto PUBLIC include)
-target_include_directories(
-    canokey-crypto
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/patched/mbedtls/include
-)
+if(USE_MBEDCRYPTO)
+    target_include_directories(
+        canokey-crypto
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/include
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/drivers/builtin/include
+    )
+endif(USE_MBEDCRYPTO)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 

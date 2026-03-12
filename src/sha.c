@@ -3,25 +3,32 @@
 #include <stdint.h>
 
 #ifdef USE_MBEDCRYPTO
-#include <mbedtls/sha1.h>
-#include <mbedtls/sha256.h>
-#include <mbedtls/sha512.h>
+#include <psa/crypto.h>
 
-static mbedtls_sha1_context sha1;
-static mbedtls_sha256_context sha256;
-static mbedtls_sha512_context sha512;
+static void ensure_psa_init(void) {
+  static int inited = 0;
+  if (!inited) {
+    psa_crypto_init();
+    inited = 1;
+  }
+}
+
+static psa_hash_operation_t sha1_op = PSA_HASH_OPERATION_INIT;
+static psa_hash_operation_t sha256_op = PSA_HASH_OPERATION_INIT;
+static psa_hash_operation_t sha512_op = PSA_HASH_OPERATION_INIT;
 #endif
 
 __attribute__((weak)) void sha1_init() {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha1_init(&sha1);
-  mbedtls_sha1_starts_ret(&sha1);
+  ensure_psa_init();
+  sha1_op = psa_hash_operation_init();
+  psa_hash_setup(&sha1_op, PSA_ALG_SHA_1);
 #endif
 }
 
 __attribute__((weak)) void sha1_update(const uint8_t *data, uint16_t len) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha1_update_ret(&sha1, data, len);
+  psa_hash_update(&sha1_op, data, len);
 #else
   (void)data;
   (void)len;
@@ -30,8 +37,8 @@ __attribute__((weak)) void sha1_update(const uint8_t *data, uint16_t len) {
 
 __attribute__((weak)) void sha1_final(uint8_t digest[SHA1_DIGEST_LENGTH]) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha1_finish_ret(&sha1, digest);
-  mbedtls_sha1_free(&sha1);
+  size_t hash_len;
+  psa_hash_finish(&sha1_op, digest, SHA1_DIGEST_LENGTH, &hash_len);
 #else
   (void)digest;
 #endif
@@ -45,14 +52,15 @@ void sha1_raw(const uint8_t *data, const size_t len, uint8_t digest[SHA1_DIGEST_
 
 __attribute__((weak)) void sha256_init() {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha256_init(&sha256);
-  mbedtls_sha256_starts_ret(&sha256, 0);
+  ensure_psa_init();
+  sha256_op = psa_hash_operation_init();
+  psa_hash_setup(&sha256_op, PSA_ALG_SHA_256);
 #endif
 }
 
 __attribute__((weak)) void sha256_update(const uint8_t *data, uint16_t len) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha256_update_ret(&sha256, data, len);
+  psa_hash_update(&sha256_op, data, len);
 #else
   (void)data;
   (void)len;
@@ -61,8 +69,8 @@ __attribute__((weak)) void sha256_update(const uint8_t *data, uint16_t len) {
 
 __attribute__((weak)) void sha256_final(uint8_t digest[SHA256_DIGEST_LENGTH]) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha256_finish_ret(&sha256, digest);
-  mbedtls_sha256_free(&sha256);
+  size_t hash_len;
+  psa_hash_finish(&sha256_op, digest, SHA256_DIGEST_LENGTH, &hash_len);
 #else
   (void)digest;
 #endif
@@ -76,14 +84,15 @@ void sha256_raw(const uint8_t *data, const size_t len, uint8_t digest[SHA256_DIG
 
 __attribute__((weak)) void sha512_init() {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha512_init(&sha512);
-  mbedtls_sha512_starts_ret(&sha512, 0);
+  ensure_psa_init();
+  sha512_op = psa_hash_operation_init();
+  psa_hash_setup(&sha512_op, PSA_ALG_SHA_512);
 #endif
 }
 
 __attribute__((weak)) void sha512_update(const uint8_t *data, uint16_t len) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha512_update_ret(&sha512, data, len);
+  psa_hash_update(&sha512_op, data, len);
 #else
   (void)data;
   (void)len;
@@ -92,8 +101,8 @@ __attribute__((weak)) void sha512_update(const uint8_t *data, uint16_t len) {
 
 __attribute__((weak)) void sha512_final(uint8_t digest[SHA512_DIGEST_LENGTH]) {
 #ifdef USE_MBEDCRYPTO
-  mbedtls_sha512_finish_ret(&sha512, digest);
-  mbedtls_sha512_free(&sha512);
+  size_t hash_len;
+  psa_hash_finish(&sha512_op, digest, SHA512_DIGEST_LENGTH, &hash_len);
 #else
   (void)digest;
 #endif
