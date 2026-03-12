@@ -113,7 +113,8 @@ int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, const size_t le
   return rsa_private(key, sig, sig);
 }
 
-int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out, uint8_t *invalid_padding) {
+int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out,
+                         uint8_t *invalid_padding) {
   *invalid_padding = 0;
   if (rsa_private(key, in, out) < 0) return -1;
   const int len = pkcs1_v15_remove_padding(out, key->nbits / 8, out);
