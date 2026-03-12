@@ -3,16 +3,11 @@
 #ifdef USE_MBEDCRYPTO
 #include <psa/crypto.h>
 
-static void ensure_psa_init(void) {
-  static int inited = 0;
-  if (!inited) {
-    psa_crypto_init();
-    inited = 1;
-  }
-}
+#define PSA_CHECK(call) do { if ((call) != PSA_SUCCESS) return -1; } while (0)
 
 static int aes_ecb(const void *in, void *out, const void *key, size_t keybits, psa_key_usage_t usage) {
-  ensure_psa_init();
+  PSA_CHECK(psa_crypto_init());
+
   psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
   psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
   psa_set_key_bits(&attr, keybits);
@@ -20,7 +15,7 @@ static int aes_ecb(const void *in, void *out, const void *key, size_t keybits, p
   psa_set_key_algorithm(&attr, PSA_ALG_ECB_NO_PADDING);
 
   psa_key_id_t key_id;
-  if (psa_import_key(&attr, key, keybits / 8, &key_id) != PSA_SUCCESS) return -1;
+  PSA_CHECK(psa_import_key(&attr, key, keybits / 8, &key_id));
 
   size_t out_len;
   psa_status_t status;
