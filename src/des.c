@@ -2,8 +2,8 @@
 // Standalone DES/3DES-EDE implementation (DES removed from mbedtls 4.0)
 // Uses uint64_t for 64-bit block operations.
 #include <des.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 
 // clang-format off
 
@@ -101,7 +101,8 @@ static uint64_t permute64(uint64_t in, const uint8_t *table, int n) {
 
 static uint64_t bytes_to_u64(const uint8_t b[8]) {
   uint64_t v = 0;
-  for (int i = 0; i < 8; i++) v = (v << 8) | b[i];
+  for (int i = 0; i < 8; i++)
+    v = (v << 8) | b[i];
   return v;
 }
 
@@ -202,7 +203,8 @@ __attribute__((weak)) int des_dec(const uint8_t *in, uint8_t *out, const uint8_t
   des_generate_subkeys(key, subkeys);
   /* Reverse subkey order */
   uint64_t rev[16];
-  for (int i = 0; i < 16; i++) rev[i] = subkeys[15 - i];
+  for (int i = 0; i < 16; i++)
+    rev[i] = subkeys[15 - i];
   des_process(in, out, rev);
   return 0;
 }

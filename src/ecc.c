@@ -11,8 +11,8 @@ const uint8_t SM2_ID_DEFAULT[] = {0x10, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
 
 #ifdef USE_MBEDCRYPTO
 #include <mbedtls/private/bignum.h>
-#include <mbedtls/private/ecp.h>
 #include <mbedtls/private/ecdsa.h>
+#include <mbedtls/private/ecp.h>
 
 #include <sha.h>
 

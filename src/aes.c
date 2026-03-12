@@ -3,7 +3,10 @@
 #ifdef USE_MBEDCRYPTO
 #include <psa/crypto.h>
 
-#define PSA_CHECK(call) do { if ((call) != PSA_SUCCESS) return -1; } while (0)
+#define PSA_CHECK(call)                                                                                                \
+  do {                                                                                                                 \
+    if ((call) != PSA_SUCCESS) return -1;                                                                              \
+  } while (0)
 
 static int aes_ecb(const void *in, void *out, const void *key, size_t keybits, psa_key_usage_t usage) {
   PSA_CHECK(psa_crypto_init());

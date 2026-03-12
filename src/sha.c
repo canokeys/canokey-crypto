@@ -5,7 +5,10 @@
 #ifdef USE_MBEDCRYPTO
 #include <psa/crypto.h>
 
-#define PSA_CHECK(call) do { if ((call) != PSA_SUCCESS) return; } while (0)
+#define PSA_CHECK(call)                                                                                                \
+  do {                                                                                                                 \
+    if ((call) != PSA_SUCCESS) return;                                                                                 \
+  } while (0)
 
 static psa_hash_operation_t sha1_op = PSA_HASH_OPERATION_INIT;
 static psa_hash_operation_t sha256_op = PSA_HASH_OPERATION_INIT;
