@@ -14,16 +14,16 @@
 #define SHA3_224_BLOCK_LENGTH 144
 #define SHA3_256_BLOCK_LENGTH 136
 #define SHA3_384_BLOCK_LENGTH 104
-#define SHA3_512_BLOCK_LENGTH  72
+#define SHA3_512_BLOCK_LENGTH 72
 #define SHAKE128_BLOCK_LENGTH 168
 #define SHAKE256_BLOCK_LENGTH 136
 
 /* Digest sizes (bytes) */
 enum {
-    SHA3_224_DIGEST_LENGTH = 28,
-    SHA3_256_DIGEST_LENGTH = 32,
-    SHA3_384_DIGEST_LENGTH = 48,
-    SHA3_512_DIGEST_LENGTH = 64,
+  SHA3_224_DIGEST_LENGTH = 28,
+  SHA3_256_DIGEST_LENGTH = 32,
+  SHA3_384_DIGEST_LENGTH = 48,
+  SHA3_512_DIGEST_LENGTH = 64,
 };
 
 /* ----- Init ----- */
@@ -36,12 +36,12 @@ void shake256_init(void);
 
 /* ----- Update (shared across all modes) ----- */
 void keccak_update(const uint8_t *msg, size_t size);
-#define sha3_update   keccak_update
-#define shake_update  keccak_update
+#define sha3_update keccak_update
+#define shake_update keccak_update
 
 /* ----- Finalize (fixed-length digest) ----- */
-void sha3_finalize(uint8_t *result);    /* pad 0x06 */
-void keccak_finalize(uint8_t *result);  /* pad 0x01 */
+void sha3_finalize(uint8_t *result);   /* pad 0x06 */
+void keccak_finalize(uint8_t *result); /* pad 0x01 */
 
 /* ----- SHAKE XOF ----- */
 void shake_finalize(void);
