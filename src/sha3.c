@@ -27,7 +27,9 @@ static sha3_ctx_t ctx;
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define KECCAK_BIG_ENDIAN 1
-#else
+#endif
+
+#ifndef KECCAK_BIG_ENDIAN
 #define KECCAK_BIG_ENDIAN 0
 #endif
 
