@@ -24,14 +24,12 @@ jobs:
 
     - name: Build for Test
       run: |
-        mkdir build && pushd build
-        cmake .. -DENABLE_CRYPTO_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
-        make -j2
+        cmake -S . -B build -G Ninja -DENABLE_CRYPTO_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build -j$(nproc)
 
     - name: Smoking Tests
       run: |
-        cd build
-        make test
+        cd build && ctest
 
     - name: Generate coverage
       run: |
@@ -46,6 +44,7 @@ jobs:
 
     - name: Build without MbedTLS
       run: |
-        pushd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_MBEDCRYPTO=OFF
-        make -j2
+        rm -rf build
+        cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DUSE_MBEDCRYPTO=OFF
+        cmake --build build -j$(nproc)
+

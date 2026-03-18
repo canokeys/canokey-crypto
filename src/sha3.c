@@ -1,396 +1,286 @@
-/* sha3.c - an implementation of Secure Hash Algorithm 3 (Keccak).
- * based on the
- * The Keccak SHA-3 submission. Submission to NIST (Round 3), 2011
- * by Guido Bertoni, Joan Daemen, Michaël Peeters and Gilles Van Assche
+/*
+ * SHA-3 / Keccak / SHAKE implementation based on FIPS 202.
  *
- * Copyright: 2013 Aleksey Kravchenko <rhash.admin@gmail.com>
+ * Keccak-f[1600] permutation derived from Mbed TLS (Apache-2.0 OR GPL-2.0-or-later),
+ * using compressed round constants to minimize ROM usage.
  *
- * Permission is hereby granted,  free of charge,  to any person  obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction,  including without limitation
- * the rights to  use, copy, modify,  merge, publish, distribute, sublicense,
- * and/or sell copies  of  the Software,  and to permit  persons  to whom the
- * Software is furnished to do so.
- *
- * This program  is  distributed  in  the  hope  that it will be useful,  but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  Use this program  at  your own risk!
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <assert.h>
+#ifdef SHA3_CTX_T
+#warning                                                                                                               \
+    "SHA3_CTX_T is defined by user. You should override the symbols in sha3.c, or they WILL BREAK if SHA3_CTX_T has smaller size than sha3_ctx_t in <sha3.h>."
+#endif
+
 #include <memzero.h>
+#include <sha3.h>
 #include <string.h>
 
-#include "sha3.h"
+/* ---------- Endianness helpers ---------- */
 
-static void swap_copy_u64_to_str(void *to, const void *from, size_t length);
-
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
-#define BIG_ENDIAN 4321
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define KECCAK_BIG_ENDIAN 1
 #endif
 
-#ifndef BYTE_ORDER
-#define BYTE_ORDER LITTLE_ENDIAN
+#ifndef KECCAK_BIG_ENDIAN
+#define KECCAK_BIG_ENDIAN 0
 #endif
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define le2me_64(x) (x)
-#define me64_to_le_str(to, from, length) memcpy((to), (from), (length))
+static inline void state_xor_byte(uint64_t *state, unsigned pos, uint8_t val) {
+#if KECCAK_BIG_ENDIAN
+  state[pos >> 3] ^= (uint64_t)val << ((pos & 7) * 8);
 #else
-#define le2me_64(x) __builtin_bswap64(x)
-#define me64_to_le_str(to, from, length) swap_copy_u64_to_str((to), (from), (length))
+  ((uint8_t *)state)[pos] ^= val;
 #endif
-
-#define I64(x) x##LL
-#define ROTL64(qword, n) ((qword) << (n) ^ ((qword) >> (64 - (n))))
-#define IS_ALIGNED_64(p) (0 == (7 & ((int)(const char *)(p))))
-
-/* constants */
-#define NumberOfRounds 24
-
-/* SHA3 (Keccak) constants for 24 rounds */
-static uint64_t keccak_round_constants[NumberOfRounds] = {
-    I64(0x0000000000000001), I64(0x0000000000008082), I64(0x800000000000808A), I64(0x8000000080008000),
-    I64(0x000000000000808B), I64(0x0000000080000001), I64(0x8000000080008081), I64(0x8000000000008009),
-    I64(0x000000000000008A), I64(0x0000000000000088), I64(0x0000000080008009), I64(0x000000008000000A),
-    I64(0x000000008000808B), I64(0x800000000000008B), I64(0x8000000000008089), I64(0x8000000000008003),
-    I64(0x8000000000008002), I64(0x8000000000000080), I64(0x000000000000800A), I64(0x800000008000000A),
-    I64(0x8000000080008081), I64(0x8000000000008080), I64(0x0000000080000001), I64(0x8000000080008008)};
-
-__attribute__((unused)) static void swap_copy_u64_to_str(void *to, const void *from, const size_t length) {
-  /* if all pointers and length are 64-bits aligned */
-  if (0 == (((int)(char *)to | (int)(char *)from | length) & 7)) {
-    /* copy aligned memory block as 64-bit integers */
-    const uint64_t *src = from;
-    const uint64_t *end = (const uint64_t *)((const char *)src + length);
-    uint64_t *dst = to;
-    while (src < end)
-      *dst++ = __builtin_bswap64(*src++);
-  } else {
-    char *dst = to;
-    for (size_t index = 0; index < length; index++)
-      *dst++ = ((char *)from)[index ^ 7];
-  }
 }
 
-/* Initializing a sha3 context for given number of output bits */
-static void keccak_Init(SHA3_CTX *ctx, const unsigned bits) {
-  /* NB: The Keccak capacity parameter = bits * 2 */
-  const unsigned rate = 1600 - bits * 2;
-
-  memzero(ctx, sizeof(SHA3_CTX));
-  ctx->block_size = rate / 8;
-  assert(rate <= 1600 && (rate % 64) == 0);
-}
-
-/**
- * Initialize context before calculating hash.
- *
- * @param ctx context to initialize
- */
-void sha3_224_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 224); }
-
-/**
- * Initialize context before calculating hash.
- *
- * @param ctx context to initialize
- */
-void sha3_256_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 256); }
-
-/**
- * Initialize context before calculating hash.
- *
- * @param ctx context to initialize
- */
-void sha3_384_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 384); }
-
-/**
- * Initialize context before calculating hash.
- *
- * @param ctx context to initialize
- */
-void sha3_512_Init(SHA3_CTX *ctx) { keccak_Init(ctx, 512); }
-
-/* Keccak theta() transformation */
-static void keccak_theta(uint64_t *A) {
-  unsigned int x;
-  uint64_t C[5], D[5];
-
-  for (x = 0; x < 5; x++) {
-    C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
-  }
-  D[0] = ROTL64(C[1], 1) ^ C[4];
-  D[1] = ROTL64(C[2], 1) ^ C[0];
-  D[2] = ROTL64(C[3], 1) ^ C[1];
-  D[3] = ROTL64(C[4], 1) ^ C[2];
-  D[4] = ROTL64(C[0], 1) ^ C[3];
-
-  for (x = 0; x < 5; x++) {
-    A[x] ^= D[x];
-    A[x + 5] ^= D[x];
-    A[x + 10] ^= D[x];
-    A[x + 15] ^= D[x];
-    A[x + 20] ^= D[x];
-  }
-}
-
-/* Keccak pi() transformation */
-static void keccak_pi(uint64_t *A) {
-  const uint64_t A1 = A[1];
-  A[1] = A[6];
-  A[6] = A[9];
-  A[9] = A[22];
-  A[22] = A[14];
-  A[14] = A[20];
-  A[20] = A[2];
-  A[2] = A[12];
-  A[12] = A[13];
-  A[13] = A[19];
-  A[19] = A[23];
-  A[23] = A[15];
-  A[15] = A[4];
-  A[4] = A[24];
-  A[24] = A[21];
-  A[21] = A[8];
-  A[8] = A[16];
-  A[16] = A[5];
-  A[5] = A[3];
-  A[3] = A[18];
-  A[18] = A[17];
-  A[17] = A[11];
-  A[11] = A[7];
-  A[7] = A[10];
-  A[10] = A1;
-  /* note: A[ 0] is left as is */
-}
-
-/* Keccak chi() transformation */
-static void keccak_chi(uint64_t *A) {
-  for (int i = 0; i < 25; i += 5) {
-    const uint64_t A0 = A[0 + i], A1 = A[1 + i];
-    A[0 + i] ^= ~A1 & A[2 + i];
-    A[1 + i] ^= ~A[2 + i] & A[3 + i];
-    A[2 + i] ^= ~A[3 + i] & A[4 + i];
-    A[3 + i] ^= ~A[4 + i] & A0;
-    A[4 + i] ^= ~A0 & A1;
-  }
-}
-
-static void sha3_permutation(uint64_t *state) {
-  for (int round = 0; round < NumberOfRounds; round++) {
-    keccak_theta(state);
-
-    /* apply Keccak rho() transformation */
-    state[1] = ROTL64(state[1], 1);
-    state[2] = ROTL64(state[2], 62);
-    state[3] = ROTL64(state[3], 28);
-    state[4] = ROTL64(state[4], 27);
-    state[5] = ROTL64(state[5], 36);
-    state[6] = ROTL64(state[6], 44);
-    state[7] = ROTL64(state[7], 6);
-    state[8] = ROTL64(state[8], 55);
-    state[9] = ROTL64(state[9], 20);
-    state[10] = ROTL64(state[10], 3);
-    state[11] = ROTL64(state[11], 10);
-    state[12] = ROTL64(state[12], 43);
-    state[13] = ROTL64(state[13], 25);
-    state[14] = ROTL64(state[14], 39);
-    state[15] = ROTL64(state[15], 41);
-    state[16] = ROTL64(state[16], 45);
-    state[17] = ROTL64(state[17], 15);
-    state[18] = ROTL64(state[18], 21);
-    state[19] = ROTL64(state[19], 8);
-    state[20] = ROTL64(state[20], 18);
-    state[21] = ROTL64(state[21], 2);
-    state[22] = ROTL64(state[22], 61);
-    state[23] = ROTL64(state[23], 56);
-    state[24] = ROTL64(state[24], 14);
-
-    keccak_pi(state);
-    keccak_chi(state);
-
-    /* apply iota(state, round) */
-    *state ^= keccak_round_constants[round];
-  }
-}
-
-/**
- * The core transformation. Process the specified block of data.
- *
- * @param hash the algorithm state
- * @param block the message block to process
- * @param block_size the size of the processed block in bytes
- */
-static void sha3_process_block(uint64_t hash[25], const uint64_t *block, size_t block_size) {
-  /* expanded loop */
-  hash[0] ^= le2me_64(block[0]);
-  hash[1] ^= le2me_64(block[1]);
-  hash[2] ^= le2me_64(block[2]);
-  hash[3] ^= le2me_64(block[3]);
-  hash[4] ^= le2me_64(block[4]);
-  hash[5] ^= le2me_64(block[5]);
-  hash[6] ^= le2me_64(block[6]);
-  hash[7] ^= le2me_64(block[7]);
-  hash[8] ^= le2me_64(block[8]);
-  /* if not sha3-512 */
-  if (block_size > 72) {
-    hash[9] ^= le2me_64(block[9]);
-    hash[10] ^= le2me_64(block[10]);
-    hash[11] ^= le2me_64(block[11]);
-    hash[12] ^= le2me_64(block[12]);
-    /* if not sha3-384 */
-    if (block_size > 104) {
-      hash[13] ^= le2me_64(block[13]);
-      hash[14] ^= le2me_64(block[14]);
-      hash[15] ^= le2me_64(block[15]);
-      hash[16] ^= le2me_64(block[16]);
-      /* if not sha3-256 */
-      if (block_size > 136) {
-        hash[17] ^= le2me_64(block[17]);
-#ifdef FULL_SHA3_FAMILY_SUPPORT
-        /* if not sha3-224 */
-        if (block_size > 144) {
-          hash[18] ^= le2me_64(block[18]);
-          hash[19] ^= le2me_64(block[19]);
-          hash[20] ^= le2me_64(block[20]);
-          hash[21] ^= le2me_64(block[21]);
-          hash[22] ^= le2me_64(block[22]);
-          hash[23] ^= le2me_64(block[23]);
-          hash[24] ^= le2me_64(block[24]);
-        }
+static inline uint8_t state_get_byte(const uint64_t *state, unsigned pos) {
+#if KECCAK_BIG_ENDIAN
+  return (uint8_t)(state[pos >> 3] >> ((pos & 7) * 8));
+#else
+  return ((const uint8_t *)state)[pos];
 #endif
+}
+
+/* ---------- Keccak-f[1600] permutation ---------- */
+
+#define H(b63, b31, b15) ((b63) << 6 | (b31) << 5 | (b15) << 4)
+static const uint8_t iota_r_packed[24] = {
+    H(0, 0, 0) | 0x01, H(0, 0, 1) | 0x82, H(1, 0, 1) | 0x8a, H(1, 1, 1) | 0x00, H(0, 0, 1) | 0x8b, H(0, 1, 0) | 0x01,
+    H(1, 1, 1) | 0x81, H(1, 0, 1) | 0x09, H(0, 0, 0) | 0x8a, H(0, 0, 0) | 0x88, H(0, 1, 1) | 0x09, H(0, 1, 0) | 0x0a,
+    H(0, 1, 1) | 0x8b, H(1, 0, 0) | 0x8b, H(1, 0, 1) | 0x89, H(1, 0, 1) | 0x03, H(1, 0, 1) | 0x02, H(1, 0, 0) | 0x80,
+    H(0, 0, 1) | 0x0a, H(1, 1, 0) | 0x0a, H(1, 1, 1) | 0x81, H(1, 0, 1) | 0x80, H(0, 1, 0) | 0x01, H(1, 1, 1) | 0x08,
+};
+#undef H
+
+static const uint32_t rho[6] = {0x3f022425, 0x1c143a09, 0x2c3d3615, 0x27191713, 0x312b382e, 0x3e030832};
+
+static const uint32_t pi[6] = {0x110b070a, 0x10050312, 0x04181508, 0x0d13170f, 0x0e14020c, 0x01060916};
+
+#define ROTR64(x, y) (((x) << (64U - (y))) | ((x) >> (y)))
+#define SWAP(x, y)                                                                                                     \
+  do {                                                                                                                 \
+    uint64_t tmp_ = (x);                                                                                               \
+    (x) = (y);                                                                                                         \
+    (y) = tmp_;                                                                                                        \
+  } while (0)
+
+static void keccak_f1600(uint64_t s[25]) {
+  uint64_t lane[5];
+  for (int round = 0; round < 24; round++) {
+    uint64_t t;
+    int i;
+
+    /* Theta */
+    for (i = 0; i < 5; i++)
+      lane[i] = s[i] ^ s[i + 5] ^ s[i + 10] ^ s[i + 15] ^ s[i + 20];
+    for (i = 0; i < 5; i++) {
+      t = lane[(i + 4) % 5] ^ ROTR64(lane[(i + 1) % 5], 63);
+      s[i] ^= t;
+      s[i + 5] ^= t;
+      s[i + 10] ^= t;
+      s[i + 15] ^= t;
+      s[i + 20] ^= t;
+    }
+
+    /* Rho */
+    for (i = 1; i < 25; i += 4) {
+      uint32_t r = rho[(i - 1) >> 2];
+      for (int j = i; j < i + 4; j++) {
+        s[j] = ROTR64(s[j], (uint8_t)(r >> 24));
+        r <<= 8;
       }
     }
-  }
-  /* make a permutation of the hash */
-  sha3_permutation(hash);
-}
 
-#define SHA3_FINALIZED 0x80000000
-
-/**
- * Calculate message hash.
- * Can be called repeatedly with chunks of the message to be hashed.
- *
- * @param ctx the algorithm context containing current hashing state
- * @param msg message chunk
- * @param size length of the message chunk
- */
-void sha3_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
-  const size_t idx = ctx->rest;
-  const size_t block_size = ctx->block_size;
-
-  if (ctx->rest & SHA3_FINALIZED) return; /* too late for additional input */
-  ctx->rest = (ctx->rest + size) % block_size;
-
-  /* fill partial block */
-  if (idx) {
-    const size_t left = block_size - idx;
-    memcpy((char *)ctx->message + idx, msg, size < left ? size : left);
-    if (size < left) return;
-
-    /* process partial block */
-    sha3_process_block(ctx->hash, ctx->message, block_size);
-    msg += left;
-    size -= left;
-  }
-  while (size >= block_size) {
-    uint64_t *aligned_message_block;
-    if (IS_ALIGNED_64(msg)) {
-      /* the most common case is processing of an already aligned message
-      without copying it */
-      aligned_message_block = (uint64_t *)(void *)msg;
-    } else {
-      memcpy(ctx->message, msg, block_size);
-      aligned_message_block = ctx->message;
+    /* Pi */
+    t = s[1];
+    for (i = 0; i < 24; i += 4) {
+      uint32_t p = pi[i >> 2];
+      for (unsigned j = 0; j < 4; j++) {
+        SWAP(s[p & 0xff], t);
+        p >>= 8;
+      }
     }
 
-    sha3_process_block(ctx->hash, aligned_message_block, block_size);
-    msg += block_size;
-    size -= block_size;
-  }
-  if (size) {
-    memcpy(ctx->message, msg, size); /* save leftovers */
+    /* Chi */
+    for (i = 0; i <= 20; i += 5) {
+      lane[0] = s[i];
+      lane[1] = s[i + 1];
+      lane[2] = s[i + 2];
+      lane[3] = s[i + 3];
+      lane[4] = s[i + 4];
+      s[i + 0] ^= (~lane[1]) & lane[2];
+      s[i + 1] ^= (~lane[2]) & lane[3];
+      s[i + 2] ^= (~lane[3]) & lane[4];
+      s[i + 3] ^= (~lane[4]) & lane[0];
+      s[i + 4] ^= (~lane[0]) & lane[1];
+    }
+
+    /* Iota */
+    s[0] ^= ((iota_r_packed[round] & 0x40ull) << 57 | (iota_r_packed[round] & 0x20ull) << 26 |
+             (iota_r_packed[round] & 0x10ull) << 11 | (iota_r_packed[round] & 0x8f));
   }
 }
 
-/**
- * Store calculated hash into the given array.
- *
- * @param ctx the algorithm context containing current hashing state
- * @param result calculated hash in binary form
- */
-void sha3_Final(SHA3_CTX *ctx, unsigned char *result) {
-  const size_t digest_length = 100 - ctx->block_size / 2;
-  const size_t block_size = ctx->block_size;
+/* ---------- Internal sponge operations ---------- */
 
-  if (!(ctx->rest & SHA3_FINALIZED)) {
-    /* clear the rest of the data queue */
-    memzero((char *)ctx->message + ctx->rest, block_size - ctx->rest);
-    ((char *)ctx->message)[ctx->rest] |= 0x06;
-    ((char *)ctx->message)[block_size - 1] |= 0x80;
+#define SPONGE_FINALIZED 0x80000000u
+#define SPONGE_SQUEEZED 0x40000000u
+#define SPONGE_INDEX_MASK 0x0000FFFFu
 
-    /* process final block */
-    sha3_process_block(ctx->hash, ctx->message, block_size);
-    ctx->rest = SHA3_FINALIZED; /* mark context as finalized */
-  }
-
-  assert(block_size > digest_length);
-  if (result) me64_to_le_str(result, ctx->hash, digest_length);
-  memzero(ctx, sizeof(SHA3_CTX));
-}
-
-/**
- * Store calculated hash into the given array.
- *
- * @param ctx the algorithm context containing current hashing state
- * @param result calculated hash in binary form
- */
-void keccak_Final(SHA3_CTX *ctx, unsigned char *result) {
-  const size_t digest_length = 100 - ctx->block_size / 2;
-  const size_t block_size = ctx->block_size;
-
-  if (!(ctx->rest & SHA3_FINALIZED)) {
-    /* clear the rest of the data queue */
-    memzero((char *)ctx->message + ctx->rest, block_size - ctx->rest);
-    ((char *)ctx->message)[ctx->rest] |= 0x01;
-    ((char *)ctx->message)[block_size - 1] |= 0x80;
-
-    /* process final block */
-    sha3_process_block(ctx->hash, ctx->message, block_size);
-    ctx->rest = SHA3_FINALIZED; /* mark context as finalized */
+static void keccak_absorb(sha3_ctx_t *ctx, const uint8_t *data, size_t len) {
+  /* Reject absorption if context is uninitialized or sponge is finalized/squeezing */
+  if (ctx->block_size == 0 ||
+      (ctx->rest & (SPONGE_FINALIZED | SPONGE_SQUEEZED)) != 0) {
+    return;
   }
 
-  assert(block_size > digest_length);
-  if (result) me64_to_le_str(result, ctx->hash, digest_length);
-  memzero(ctx, sizeof(SHA3_CTX));
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
+  const unsigned rate = ctx->block_size;
+
+  while (len > 0) {
+    unsigned todo = rate - idx;
+    if (todo > len) todo = (unsigned)len;
+
+    for (unsigned i = 0; i < todo; i++)
+      state_xor_byte(ctx->hash, idx + i, data[i]);
+
+    idx += todo;
+    data += todo;
+    len -= todo;
+
+    if (idx == rate) {
+      keccak_f1600(ctx->hash);
+      idx = 0;
+    }
+  }
+  /* Preserve state flags while updating the absorb index */
+  ctx->rest = (ctx->rest & ~SPONGE_INDEX_MASK) | idx;
 }
 
-void keccak_256(const unsigned char *data, const size_t len, unsigned char *digest) {
-  SHA3_CTX ctx;
-  keccak_256_Init(&ctx);
-  keccak_Update(&ctx, data, len);
-  keccak_Final(&ctx, digest);
+static void keccak_pad(sha3_ctx_t *ctx, uint8_t pad_byte) {
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
+  const unsigned rate = ctx->block_size;
+
+  state_xor_byte(ctx->hash, idx, pad_byte);
+  state_xor_byte(ctx->hash, rate - 1, 0x80);
+  keccak_f1600(ctx->hash);
+
+  ctx->rest = SPONGE_FINALIZED;
 }
 
-void keccak_512(const unsigned char *data, const size_t len, unsigned char *digest) {
-  SHA3_CTX ctx;
-  keccak_512_Init(&ctx);
-  keccak_Update(&ctx, data, len);
-  keccak_Final(&ctx, digest);
+static void keccak_squeeze_internal(sha3_ctx_t *ctx, uint8_t *out, size_t out_len) {
+  const unsigned rate = ctx->block_size;
+  unsigned pos = (ctx->rest & SPONGE_SQUEEZED) ? (ctx->rest & SPONGE_INDEX_MASK) : 0;
+
+  while (out_len > 0) {
+    if (pos == rate) {
+      keccak_f1600(ctx->hash);
+      pos = 0;
+    }
+    unsigned avail = rate - pos;
+    unsigned todo = (out_len < avail) ? (unsigned)out_len : avail;
+
+    for (unsigned i = 0; i < todo; i++)
+      out[i] = state_get_byte(ctx->hash, pos + i);
+
+    pos += todo;
+    out += todo;
+    out_len -= todo;
+  }
+  ctx->rest = SPONGE_FINALIZED | SPONGE_SQUEEZED | pos;
 }
 
-void sha3_256(const unsigned char *data, const size_t len, unsigned char *digest) {
-  SHA3_CTX ctx;
-  sha3_256_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  sha3_Final(&ctx, digest);
+static void keccak_finalize_hash(sha3_ctx_t *ctx, uint8_t pad_byte, uint8_t *result) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, pad_byte);
+  unsigned digest_len = (200 - ctx->block_size) / 2;
+  keccak_squeeze_internal(ctx, result, digest_len);
+  memzero(ctx, sizeof(sha3_ctx_t));
 }
 
-void sha3_512(const unsigned char *data, const size_t len, unsigned char *digest) {
-  SHA3_CTX ctx;
-  sha3_512_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  sha3_Final(&ctx, digest);
+/* ---------- Init ---------- */
+
+static void sponge_init(sha3_ctx_t *ctx, unsigned block_size) {
+  memzero(ctx, sizeof(sha3_ctx_t));
+  ctx->block_size = block_size;
+}
+
+__attribute__((weak)) void sha3_224_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_224_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_256_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_256_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_384_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_384_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_512_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_512_BLOCK_LENGTH); }
+__attribute__((weak)) void shake128_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHAKE128_BLOCK_LENGTH); }
+__attribute__((weak)) void shake256_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHAKE256_BLOCK_LENGTH); }
+
+/* ---------- Update ---------- */
+
+__attribute__((weak)) void keccak_update(sha3_ctx_t *ctx, const uint8_t *msg, size_t size) {
+  keccak_absorb(ctx, msg, size);
+}
+
+/* ---------- Finalize ---------- */
+
+__attribute__((weak)) void sha3_finalize(sha3_ctx_t *ctx, uint8_t *result) { keccak_finalize_hash(ctx, 0x06, result); }
+
+__attribute__((weak)) void keccak_finalize(sha3_ctx_t *ctx, uint8_t *result) {
+  keccak_finalize_hash(ctx, 0x01, result);
+}
+
+__attribute__((weak)) void shake_finalize(sha3_ctx_t *ctx) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
+}
+
+/* ---------- Squeeze ---------- */
+
+__attribute__((weak)) void shake_squeeze(sha3_ctx_t *ctx, uint8_t *out, size_t out_len) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
+  keccak_squeeze_internal(ctx, out, out_len);
+}
+
+/* ---------- One-shot convenience (context on stack) ---------- */
+
+__attribute__((weak)) void keccak_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
+  sha3_ctx_t ctx;
+  keccak_256_init(&ctx);
+  keccak_update(&ctx, data, len);
+  keccak_finalize(&ctx, digest);
+}
+
+__attribute__((weak)) void keccak_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
+  sha3_ctx_t ctx;
+  keccak_512_init(&ctx);
+  keccak_update(&ctx, data, len);
+  keccak_finalize(&ctx, digest);
+}
+
+__attribute__((weak)) void sha3_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
+  sha3_ctx_t ctx;
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, data, len);
+  sha3_finalize(&ctx, digest);
+}
+
+__attribute__((weak)) void sha3_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
+  sha3_ctx_t ctx;
+  sha3_512_init(&ctx);
+  sha3_update(&ctx, data, len);
+  sha3_finalize(&ctx, digest);
+}
+
+__attribute__((weak)) void shake128_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
+  sha3_ctx_t ctx;
+  shake128_init(&ctx);
+  shake_update(&ctx, data, len);
+  shake_finalize(&ctx);
+  shake_squeeze(&ctx, out, out_len);
+  memzero(&ctx, sizeof(ctx));
+}
+
+__attribute__((weak)) void shake256_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
+  sha3_ctx_t ctx;
+  shake256_init(&ctx);
+  shake_update(&ctx, data, len);
+  shake_finalize(&ctx);
+  shake_squeeze(&ctx, out, out_len);
+  memzero(&ctx, sizeof(ctx));
 }
