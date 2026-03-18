@@ -25,6 +25,4 @@ void sha512_update(const uint8_t *data, uint16_t len);
 void sha512_final(uint8_t digest[SHA512_DIGEST_LENGTH]);
 void sha512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA512_DIGEST_LENGTH]);
 
-#include "../src/sha3.h"
-
 #endif

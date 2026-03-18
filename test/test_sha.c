@@ -7,6 +7,7 @@
 // clang-format on
 #include <hmac.h>
 #include <sha.h>
+#include <sha3.h>
 
 static void test_sha1(void **state) {
   (void)state;
@@ -38,10 +39,9 @@ static void test_keccak256(void **state) {
   uint8_t expected[] = {0xbc, 0x36, 0x78, 0x9e, 0x7a, 0x1e, 0x28, 0x14, 0x36, 0x46, 0x42, 0x29, 0x82, 0x8f, 0x81, 0x7d,
                         0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91, 0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a};
   buf[0] = 0;
-  SHA3_CTX ctx;
-  keccak_256_Init(&ctx);
-  keccak_Update(&ctx, buf, 1);
-  keccak_Final(&ctx, buf);
+  keccak_256_init();
+  keccak_update(buf, 1);
+  keccak_finalize(buf);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
@@ -53,10 +53,9 @@ static void test_sha3_256(void **state) {
   uint8_t expected[] = {0x5d, 0x53, 0x46, 0x9f, 0x20, 0xfe, 0xf4, 0xf8, 0xea, 0xb5, 0x2b, 0x88, 0x04, 0x4e, 0xde, 0x69,
                         0xc7, 0x7a, 0x6a, 0x68, 0xa6, 0x07, 0x28, 0x60, 0x9f, 0xc4, 0xa6, 0x5f, 0xf5, 0x31, 0xe7, 0xd0};
   buf[0] = 0;
-  SHA3_CTX ctx;
-  sha3_256_Init(&ctx);
-  sha3_Update(&ctx, buf, 1);
-  sha3_Final(&ctx, buf);
+  sha3_256_init();
+  sha3_update(buf, 1);
+  sha3_finalize(buf);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
@@ -64,11 +63,10 @@ static void test_sha3_256(void **state) {
 
 static void test_sha3_256_abc(void **state) {
   (void)state;
-  /* sha3_256("abc") from NIST */
   uint8_t expected[] = {0x3a, 0x98, 0x5d, 0xa7, 0x4f, 0xe2, 0x25, 0xb2, 0x04, 0x5c, 0x17, 0x2d, 0x6b, 0xd3, 0x90, 0xbd,
                         0x85, 0x5f, 0x08, 0x6e, 0x3e, 0x9d, 0x52, 0x5b, 0x46, 0xbf, 0xe2, 0x45, 0x11, 0x43, 0x15, 0x32};
   uint8_t out[32];
-  sha3_256((const unsigned char *)"abc", 3, out);
+  sha3_256_raw((const unsigned char *)"abc", 3, out);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
   }
@@ -76,11 +74,10 @@ static void test_sha3_256_abc(void **state) {
 
 static void test_shake128_empty(void **state) {
   (void)state;
-  /* shake128("", 32) */
   uint8_t expected[] = {0x7f, 0x9c, 0x2b, 0xa4, 0xe8, 0x8f, 0x82, 0x7d, 0x61, 0x60, 0x45, 0x50, 0x76, 0x05, 0x85, 0x3e,
                         0xd7, 0x3b, 0x80, 0x93, 0xf6, 0xef, 0xbc, 0x88, 0xeb, 0x1a, 0x6e, 0xac, 0xfa, 0x66, 0xef, 0x26};
   uint8_t out[32];
-  shake128((const unsigned char *)"", 0, out, 32);
+  shake128_raw((const unsigned char *)"", 0, out, 32);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
   }
@@ -88,11 +85,10 @@ static void test_shake128_empty(void **state) {
 
 static void test_shake256_abc(void **state) {
   (void)state;
-  /* shake256("abc", 32) */
   uint8_t expected[] = {0x48, 0x33, 0x66, 0x60, 0x13, 0x60, 0xa8, 0x77, 0x1c, 0x68, 0x63, 0x08, 0x0c, 0xc4, 0x11, 0x4d,
                         0x8d, 0xb4, 0x45, 0x30, 0xf8, 0xf1, 0xe1, 0xee, 0x4f, 0x94, 0xea, 0x37, 0xe7, 0x8b, 0x57, 0x39};
   uint8_t out[32];
-  shake256((const unsigned char *)"abc", 3, out, 32);
+  shake256_raw((const unsigned char *)"abc", 3, out, 32);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected[i]);
   }
@@ -100,7 +96,6 @@ static void test_shake256_abc(void **state) {
 
 static void test_shake256_xof_long(void **state) {
   (void)state;
-  /* shake256("abc", 64) - tests multi-block squeeze since rate=136 and output > one block fits */
   uint8_t expected[] = {
       0x48, 0x33, 0x66, 0x60, 0x13, 0x60, 0xa8, 0x77, 0x1c, 0x68, 0x63, 0x08, 0x0c, 0xc4, 0x11, 0x4d,
       0x8d, 0xb4, 0x45, 0x30, 0xf8, 0xf1, 0xe1, 0xee, 0x4f, 0x94, 0xea, 0x37, 0xe7, 0x8b, 0x57, 0x39,
@@ -108,7 +103,7 @@ static void test_shake256_xof_long(void **state) {
       0x9f, 0x87, 0x26, 0xe4, 0x62, 0xa1, 0x2a, 0x4f, 0xeb, 0x06, 0xbd, 0x88, 0x01, 0xe7, 0x51, 0xe4,
   };
   uint8_t out[64];
-  shake256((const unsigned char *)"abc", 3, out, 64);
+  shake256_raw((const unsigned char *)"abc", 3, out, 64);
   for (int i = 0; i != 64; ++i) {
     assert_int_equal(out[i], expected[i]);
   }
@@ -116,7 +111,6 @@ static void test_shake256_xof_long(void **state) {
 
 static void test_shake256_incremental_squeeze(void **state) {
   (void)state;
-  /* Test incremental squeeze: absorb "abc", finalize, then squeeze 32+32 = 64 bytes */
   uint8_t expected[] = {
       0x48, 0x33, 0x66, 0x60, 0x13, 0x60, 0xa8, 0x77, 0x1c, 0x68, 0x63, 0x08, 0x0c, 0xc4, 0x11, 0x4d,
       0x8d, 0xb4, 0x45, 0x30, 0xf8, 0xf1, 0xe1, 0xee, 0x4f, 0x94, 0xea, 0x37, 0xe7, 0x8b, 0x57, 0x39,
@@ -124,12 +118,11 @@ static void test_shake256_incremental_squeeze(void **state) {
       0x9f, 0x87, 0x26, 0xe4, 0x62, 0xa1, 0x2a, 0x4f, 0xeb, 0x06, 0xbd, 0x88, 0x01, 0xe7, 0x51, 0xe4,
   };
   uint8_t out[64];
-  SHA3_CTX ctx;
-  shake256_Init(&ctx);
-  shake_Update(&ctx, (const unsigned char *)"abc", 3);
-  shake_Finalize(&ctx);
-  shake_Squeeze(&ctx, out, 32);
-  shake_Squeeze(&ctx, out + 32, 32);
+  shake256_init();
+  shake_update((const unsigned char *)"abc", 3);
+  shake_finalize();
+  shake_squeeze(out, 32);
+  shake_squeeze(out + 32, 32);
   for (int i = 0; i != 64; ++i) {
     assert_int_equal(out[i], expected[i]);
   }
@@ -137,12 +130,11 @@ static void test_shake256_incremental_squeeze(void **state) {
 
 static void test_shake128_long_xof(void **state) {
   (void)state;
-  /* shake128("abc", 256) - first 32 bytes */
   uint8_t expected_head[] = {0x58, 0x81, 0x09, 0x2d, 0xd8, 0x18, 0xbf, 0x5c, 0xf8, 0xa3, 0xdd,
                              0xb7, 0x93, 0xfb, 0xcb, 0xa7, 0x40, 0x97, 0xd5, 0xc5, 0x26, 0xa6,
                              0xd3, 0x5f, 0x97, 0xb8, 0x33, 0x51, 0x94, 0x0f, 0x2c, 0xc8};
   uint8_t out[256];
-  shake128((const unsigned char *)"abc", 3, out, 256);
+  shake128_raw((const unsigned char *)"abc", 3, out, 256);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(out[i], expected_head[i]);
   }
