@@ -187,7 +187,7 @@ static void keccak_squeeze_internal(uint8_t *out, size_t out_len) {
     ctx.rest = SPONGE_FINALIZED | SPONGE_SQUEEZED | pos;
 }
 
-static void keccak_finalize_hash(uint8_t pad_byte, unsigned char *result) {
+static void keccak_finalize_hash(uint8_t pad_byte, uint8_t *result) {
     if (!(ctx.rest & SPONGE_FINALIZED))
         keccak_pad(pad_byte);
     unsigned digest_len = (200 - ctx.block_size) / 2;
@@ -211,17 +211,17 @@ __attribute__((weak)) void shake256_init(void) { sponge_init(SHAKE256_BLOCK_LENG
 
 /* ---------- Update ---------- */
 
-__attribute__((weak)) void keccak_update(const unsigned char *msg, size_t size) {
+__attribute__((weak)) void keccak_update(const uint8_t *msg, size_t size) {
     keccak_absorb(msg, size);
 }
 
 /* ---------- Finalize ---------- */
 
-__attribute__((weak)) void sha3_finalize(unsigned char *result) {
+__attribute__((weak)) void sha3_finalize(uint8_t *result) {
     keccak_finalize_hash(0x06, result);
 }
 
-__attribute__((weak)) void keccak_finalize(unsigned char *result) {
+__attribute__((weak)) void keccak_finalize(uint8_t *result) {
     keccak_finalize_hash(0x01, result);
 }
 
@@ -232,7 +232,7 @@ __attribute__((weak)) void shake_finalize(void) {
 
 /* ---------- Squeeze ---------- */
 
-__attribute__((weak)) void shake_squeeze(unsigned char *out, size_t out_len) {
+__attribute__((weak)) void shake_squeeze(uint8_t *out, size_t out_len) {
     if (!(ctx.rest & SPONGE_FINALIZED))
         keccak_pad(0x1F);
     keccak_squeeze_internal(out, out_len);
@@ -240,43 +240,41 @@ __attribute__((weak)) void shake_squeeze(unsigned char *out, size_t out_len) {
 
 /* ---------- One-shot convenience ---------- */
 
-__attribute__((weak)) void keccak_256_raw(const unsigned char *data, size_t len, unsigned char *digest) {
-    sha3_256_init();
+__attribute__((weak)) void keccak_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
+    keccak_256_init();
     keccak_update(data, len);
     keccak_finalize(digest);
 }
 
-__attribute__((weak)) void keccak_512_raw(const unsigned char *data, size_t len, unsigned char *digest) {
-    sha3_512_init();
+__attribute__((weak)) void keccak_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
+    keccak_512_init();
     keccak_update(data, len);
     keccak_finalize(digest);
 }
 
-__attribute__((weak)) void sha3_256_raw(const unsigned char *data, size_t len, unsigned char *digest) {
+__attribute__((weak)) void sha3_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
     sha3_256_init();
-    keccak_update(data, len);
+    sha3_update(data, len);
     sha3_finalize(digest);
 }
 
-__attribute__((weak)) void sha3_512_raw(const unsigned char *data, size_t len, unsigned char *digest) {
+__attribute__((weak)) void sha3_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
     sha3_512_init();
-    keccak_update(data, len);
+    sha3_update(data, len);
     sha3_finalize(digest);
 }
 
-__attribute__((weak)) void shake128_raw(const unsigned char *data, size_t len,
-                                         unsigned char *out, size_t out_len) {
+__attribute__((weak)) void shake128_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
     shake128_init();
-    keccak_update(data, len);
+    shake_update(data, len);
     shake_finalize();
     shake_squeeze(out, out_len);
     memzero(&ctx, sizeof(ctx));
 }
 
-__attribute__((weak)) void shake256_raw(const unsigned char *data, size_t len,
-                                         unsigned char *out, size_t out_len) {
+__attribute__((weak)) void shake256_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
     shake256_init();
-    keccak_update(data, len);
+    shake_update(data, len);
     shake_finalize();
     shake_squeeze(out, out_len);
     memzero(&ctx, sizeof(ctx));
