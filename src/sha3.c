@@ -136,6 +136,12 @@ static void keccak_f1600(uint64_t s[25]) {
 #define SPONGE_INDEX_MASK 0x0000FFFFu
 
 static void keccak_absorb(const uint8_t *data, size_t len) {
+  /* Reject absorption if context is uninitialized or sponge is finalized/squeezing */
+  if (ctx.block_size == 0 ||
+      (ctx.rest & (SPONGE_FINALIZED | SPONGE_SQUEEZED)) != 0) {
+    return;
+  }
+
   unsigned idx = ctx.rest & SPONGE_INDEX_MASK;
   const unsigned rate = ctx.block_size;
 
@@ -155,7 +161,8 @@ static void keccak_absorb(const uint8_t *data, size_t len) {
       idx = 0;
     }
   }
-  ctx.rest = idx;
+  /* Preserve state flags while updating the absorb index */
+  ctx.rest = (ctx.rest & ~SPONGE_INDEX_MASK) | idx;
 }
 
 static void keccak_pad(uint8_t pad_byte) {

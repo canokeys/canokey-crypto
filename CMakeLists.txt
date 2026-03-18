@@ -26,7 +26,7 @@ endif()
 file(GLOB SRC src/*.c)
 add_library(canokey-crypto STATIC ${SRC})
 if(USE_MBEDCRYPTO)
-    target_compile_definitions(canokey-crypto PRIVATE -DUSE_MBEDCRYPTO)
+    target_compile_definitions(canokey-crypto PRIVATE USE_MBEDCRYPTO)
     target_link_libraries(canokey-crypto tfpsacrypto)
     target_include_directories(
         canokey-crypto
