@@ -7,21 +7,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifdef SHA3_CTX_T
+#warning                                                                                                               \
+    "SHA3_CTX_T is defined by user. You should override the symbols in sha3.c, or they WILL BREAK if SHA3_CTX_T has smaller size than sha3_ctx_t in <sha3.h>."
+#endif
+
 #include <memzero.h>
 #include <sha3.h>
 #include <string.h>
-
-/* ---------- Internal context (single global instance) ---------- */
-
-#define SHA3_MAX_PERMUTATION_SIZE 25
-
-typedef struct {
-  uint64_t hash[SHA3_MAX_PERMUTATION_SIZE]; /* 1600-bit state */
-  unsigned rest;                            /* absorb index + flags */
-  unsigned block_size;                      /* rate in bytes */
-} sha3_ctx_t;
-
-static sha3_ctx_t ctx;
 
 /* ---------- Endianness helpers ---------- */
 
@@ -135,149 +128,159 @@ static void keccak_f1600(uint64_t s[25]) {
 #define SPONGE_SQUEEZED 0x40000000u
 #define SPONGE_INDEX_MASK 0x0000FFFFu
 
-static void keccak_absorb(const uint8_t *data, size_t len) {
+static void keccak_absorb(sha3_ctx_t *ctx, const uint8_t *data, size_t len) {
   /* Reject absorption if context is uninitialized or sponge is finalized/squeezing */
-  if (ctx.block_size == 0 ||
-      (ctx.rest & (SPONGE_FINALIZED | SPONGE_SQUEEZED)) != 0) {
+  if (ctx->block_size == 0 ||
+      (ctx->rest & (SPONGE_FINALIZED | SPONGE_SQUEEZED)) != 0) {
     return;
   }
 
-  unsigned idx = ctx.rest & SPONGE_INDEX_MASK;
-  const unsigned rate = ctx.block_size;
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
+  const unsigned rate = ctx->block_size;
 
   while (len > 0) {
     unsigned todo = rate - idx;
     if (todo > len) todo = (unsigned)len;
 
     for (unsigned i = 0; i < todo; i++)
-      state_xor_byte(ctx.hash, idx + i, data[i]);
+      state_xor_byte(ctx->hash, idx + i, data[i]);
 
     idx += todo;
     data += todo;
     len -= todo;
 
     if (idx == rate) {
-      keccak_f1600(ctx.hash);
+      keccak_f1600(ctx->hash);
       idx = 0;
     }
   }
   /* Preserve state flags while updating the absorb index */
-  ctx.rest = (ctx.rest & ~SPONGE_INDEX_MASK) | idx;
+  ctx->rest = (ctx->rest & ~SPONGE_INDEX_MASK) | idx;
 }
 
-static void keccak_pad(uint8_t pad_byte) {
-  unsigned idx = ctx.rest & SPONGE_INDEX_MASK;
-  const unsigned rate = ctx.block_size;
+static void keccak_pad(sha3_ctx_t *ctx, uint8_t pad_byte) {
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
+  const unsigned rate = ctx->block_size;
 
-  state_xor_byte(ctx.hash, idx, pad_byte);
-  state_xor_byte(ctx.hash, rate - 1, 0x80);
-  keccak_f1600(ctx.hash);
+  state_xor_byte(ctx->hash, idx, pad_byte);
+  state_xor_byte(ctx->hash, rate - 1, 0x80);
+  keccak_f1600(ctx->hash);
 
-  ctx.rest = SPONGE_FINALIZED;
+  ctx->rest = SPONGE_FINALIZED;
 }
 
-static void keccak_squeeze_internal(uint8_t *out, size_t out_len) {
-  const unsigned rate = ctx.block_size;
-  unsigned pos = (ctx.rest & SPONGE_SQUEEZED) ? (ctx.rest & SPONGE_INDEX_MASK) : 0;
+static void keccak_squeeze_internal(sha3_ctx_t *ctx, uint8_t *out, size_t out_len) {
+  const unsigned rate = ctx->block_size;
+  unsigned pos = (ctx->rest & SPONGE_SQUEEZED) ? (ctx->rest & SPONGE_INDEX_MASK) : 0;
 
   while (out_len > 0) {
     if (pos == rate) {
-      keccak_f1600(ctx.hash);
+      keccak_f1600(ctx->hash);
       pos = 0;
     }
     unsigned avail = rate - pos;
     unsigned todo = (out_len < avail) ? (unsigned)out_len : avail;
 
     for (unsigned i = 0; i < todo; i++)
-      out[i] = state_get_byte(ctx.hash, pos + i);
+      out[i] = state_get_byte(ctx->hash, pos + i);
 
     pos += todo;
     out += todo;
     out_len -= todo;
   }
-  ctx.rest = SPONGE_FINALIZED | SPONGE_SQUEEZED | pos;
+  ctx->rest = SPONGE_FINALIZED | SPONGE_SQUEEZED | pos;
 }
 
-static void keccak_finalize_hash(uint8_t pad_byte, uint8_t *result) {
-  if (!(ctx.rest & SPONGE_FINALIZED)) keccak_pad(pad_byte);
-  unsigned digest_len = (200 - ctx.block_size) / 2;
-  keccak_squeeze_internal(result, digest_len);
-  memzero(&ctx, sizeof(ctx));
+static void keccak_finalize_hash(sha3_ctx_t *ctx, uint8_t pad_byte, uint8_t *result) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, pad_byte);
+  unsigned digest_len = (200 - ctx->block_size) / 2;
+  keccak_squeeze_internal(ctx, result, digest_len);
+  memzero(ctx, sizeof(sha3_ctx_t));
 }
 
 /* ---------- Init ---------- */
 
-static void sponge_init(unsigned block_size) {
-  memzero(&ctx, sizeof(ctx));
-  ctx.block_size = block_size;
+static void sponge_init(sha3_ctx_t *ctx, unsigned block_size) {
+  memzero(ctx, sizeof(sha3_ctx_t));
+  ctx->block_size = block_size;
 }
 
-__attribute__((weak)) void sha3_224_init(void) { sponge_init(SHA3_224_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_256_init(void) { sponge_init(SHA3_256_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_384_init(void) { sponge_init(SHA3_384_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_512_init(void) { sponge_init(SHA3_512_BLOCK_LENGTH); }
-__attribute__((weak)) void shake128_init(void) { sponge_init(SHAKE128_BLOCK_LENGTH); }
-__attribute__((weak)) void shake256_init(void) { sponge_init(SHAKE256_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_224_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_224_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_256_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_256_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_384_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_384_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_512_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHA3_512_BLOCK_LENGTH); }
+__attribute__((weak)) void shake128_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHAKE128_BLOCK_LENGTH); }
+__attribute__((weak)) void shake256_init(sha3_ctx_t *ctx) { sponge_init(ctx, SHAKE256_BLOCK_LENGTH); }
 
 /* ---------- Update ---------- */
 
-__attribute__((weak)) void keccak_update(const uint8_t *msg, size_t size) { keccak_absorb(msg, size); }
+__attribute__((weak)) void keccak_update(sha3_ctx_t *ctx, const uint8_t *msg, size_t size) {
+  keccak_absorb(ctx, msg, size);
+}
 
 /* ---------- Finalize ---------- */
 
-__attribute__((weak)) void sha3_finalize(uint8_t *result) { keccak_finalize_hash(0x06, result); }
+__attribute__((weak)) void sha3_finalize(sha3_ctx_t *ctx, uint8_t *result) { keccak_finalize_hash(ctx, 0x06, result); }
 
-__attribute__((weak)) void keccak_finalize(uint8_t *result) { keccak_finalize_hash(0x01, result); }
+__attribute__((weak)) void keccak_finalize(sha3_ctx_t *ctx, uint8_t *result) {
+  keccak_finalize_hash(ctx, 0x01, result);
+}
 
-__attribute__((weak)) void shake_finalize(void) {
-  if (!(ctx.rest & SPONGE_FINALIZED)) keccak_pad(0x1F);
+__attribute__((weak)) void shake_finalize(sha3_ctx_t *ctx) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
 }
 
 /* ---------- Squeeze ---------- */
 
-__attribute__((weak)) void shake_squeeze(uint8_t *out, size_t out_len) {
-  if (!(ctx.rest & SPONGE_FINALIZED)) keccak_pad(0x1F);
-  keccak_squeeze_internal(out, out_len);
+__attribute__((weak)) void shake_squeeze(sha3_ctx_t *ctx, uint8_t *out, size_t out_len) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
+  keccak_squeeze_internal(ctx, out, out_len);
 }
 
-/* ---------- One-shot convenience ---------- */
+/* ---------- One-shot convenience (context on stack) ---------- */
 
 __attribute__((weak)) void keccak_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
-  keccak_256_init();
-  keccak_update(data, len);
-  keccak_finalize(digest);
+  sha3_ctx_t ctx;
+  keccak_256_init(&ctx);
+  keccak_update(&ctx, data, len);
+  keccak_finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void keccak_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
-  keccak_512_init();
-  keccak_update(data, len);
-  keccak_finalize(digest);
+  sha3_ctx_t ctx;
+  keccak_512_init(&ctx);
+  keccak_update(&ctx, data, len);
+  keccak_finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void sha3_256_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_256_DIGEST_LENGTH]) {
-  sha3_256_init();
-  sha3_update(data, len);
-  sha3_finalize(digest);
+  sha3_ctx_t ctx;
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, data, len);
+  sha3_finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void sha3_512_raw(const uint8_t *data, size_t len, uint8_t digest[SHA3_512_DIGEST_LENGTH]) {
-  sha3_512_init();
-  sha3_update(data, len);
-  sha3_finalize(digest);
+  sha3_ctx_t ctx;
+  sha3_512_init(&ctx);
+  sha3_update(&ctx, data, len);
+  sha3_finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void shake128_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
-  shake128_init();
-  shake_update(data, len);
-  shake_finalize();
-  shake_squeeze(out, out_len);
+  sha3_ctx_t ctx;
+  shake128_init(&ctx);
+  shake_update(&ctx, data, len);
+  shake_finalize(&ctx);
+  shake_squeeze(&ctx, out, out_len);
   memzero(&ctx, sizeof(ctx));
 }
 
 __attribute__((weak)) void shake256_raw(const uint8_t *data, size_t len, uint8_t *out, size_t out_len) {
-  shake256_init();
-  shake_update(data, len);
-  shake_finalize();
-  shake_squeeze(out, out_len);
+  sha3_ctx_t ctx;
+  shake256_init(&ctx);
+  shake_update(&ctx, data, len);
+  shake_finalize(&ctx);
+  shake_squeeze(&ctx, out, out_len);
   memzero(&ctx, sizeof(ctx));
 }

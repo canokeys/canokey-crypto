@@ -39,9 +39,10 @@ static void test_keccak256(void **state) {
   uint8_t expected[] = {0xbc, 0x36, 0x78, 0x9e, 0x7a, 0x1e, 0x28, 0x14, 0x36, 0x46, 0x42, 0x29, 0x82, 0x8f, 0x81, 0x7d,
                         0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91, 0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a};
   buf[0] = 0;
-  keccak_256_init();
-  keccak_update(buf, 1);
-  keccak_finalize(buf);
+  sha3_ctx_t ctx;
+  keccak_256_init(&ctx);
+  keccak_update(&ctx, buf, 1);
+  keccak_finalize(&ctx, buf);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
@@ -53,9 +54,10 @@ static void test_sha3_256(void **state) {
   uint8_t expected[] = {0x5d, 0x53, 0x46, 0x9f, 0x20, 0xfe, 0xf4, 0xf8, 0xea, 0xb5, 0x2b, 0x88, 0x04, 0x4e, 0xde, 0x69,
                         0xc7, 0x7a, 0x6a, 0x68, 0xa6, 0x07, 0x28, 0x60, 0x9f, 0xc4, 0xa6, 0x5f, 0xf5, 0x31, 0xe7, 0xd0};
   buf[0] = 0;
-  sha3_256_init();
-  sha3_update(buf, 1);
-  sha3_finalize(buf);
+  sha3_ctx_t ctx;
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, buf, 1);
+  sha3_finalize(&ctx, buf);
   for (int i = 0; i != 32; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
@@ -118,11 +120,12 @@ static void test_shake256_incremental_squeeze(void **state) {
       0x9f, 0x87, 0x26, 0xe4, 0x62, 0xa1, 0x2a, 0x4f, 0xeb, 0x06, 0xbd, 0x88, 0x01, 0xe7, 0x51, 0xe4,
   };
   uint8_t out[64];
-  shake256_init();
-  shake_update((const unsigned char *)"abc", 3);
-  shake_finalize();
-  shake_squeeze(out, 32);
-  shake_squeeze(out + 32, 32);
+  sha3_ctx_t ctx;
+  shake256_init(&ctx);
+  shake_update(&ctx, (const unsigned char *)"abc", 3);
+  shake_finalize(&ctx);
+  shake_squeeze(&ctx, out, 32);
+  shake_squeeze(&ctx, out + 32, 32);
   for (int i = 0; i != 64; ++i) {
     assert_int_equal(out[i], expected[i]);
   }

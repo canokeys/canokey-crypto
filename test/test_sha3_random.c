@@ -31,14 +31,16 @@ static void prng_fill(uint8_t *buf, size_t len) {
 }
 
 /* Cross-validate one SHA3 variant against mbedtls */
-static void cross_validate_sha3(mbedtls_sha3_id id, void (*our_init)(void), void (*our_finalize)(uint8_t *),
-                                unsigned digest_len, const uint8_t *data, size_t data_len) {
+static void cross_validate_sha3(mbedtls_sha3_id id, void (*our_init)(SHA3_CTX_T *),
+                                void (*our_finalize)(SHA3_CTX_T *, uint8_t *), unsigned digest_len, const uint8_t *data,
+                                size_t data_len) {
   uint8_t our_digest[64];
   uint8_t mbed_digest[64];
 
-  our_init();
-  sha3_update(data, data_len);
-  our_finalize(our_digest);
+  sha3_ctx_t ctx;
+  our_init(&ctx);
+  sha3_update(&ctx, data, data_len);
+  our_finalize(&ctx, our_digest);
 
   mbedtls_sha3_context mctx;
   mbedtls_sha3_init(&mctx);
