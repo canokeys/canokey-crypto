@@ -16,9 +16,8 @@
 #define sha3_384_hash_size 48
 #define sha3_512_hash_size 64
 #define sha3_max_permutation_size 25
-#define sha3_max_rate_in_qwords 24
 
-/* Block sizes (rate in bytes) */
+/* Block sizes = rate in bytes */
 #define SHA3_224_BLOCK_LENGTH 144
 #define SHA3_256_BLOCK_LENGTH 136
 #define SHA3_384_BLOCK_LENGTH 104
@@ -38,41 +37,49 @@
  */
 typedef struct SHA3_CTX {
   uint64_t hash[sha3_max_permutation_size]; /* 1600-bit state */
-  unsigned rest;                            /* index + flags */
+  unsigned rest;                            /* absorb index + flags */
   unsigned block_size;                      /* rate in bytes */
 } SHA3_CTX;
 
-/* ----- SHA-3 ----- */
+/* ----- Init ----- */
 void sha3_224_Init(SHA3_CTX *ctx);
 void sha3_256_Init(SHA3_CTX *ctx);
 void sha3_384_Init(SHA3_CTX *ctx);
 void sha3_512_Init(SHA3_CTX *ctx);
-void sha3_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size);
-void sha3_Final(SHA3_CTX *ctx, unsigned char *result);
+void shake128_Init(SHA3_CTX *ctx);
+void shake256_Init(SHA3_CTX *ctx);
 
-/* ----- Keccak (legacy, different padding) ----- */
+/* ----- Update (shared across all modes) ----- */
+void keccak_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size);
+
+/* All modes share the same absorb function */
+#define sha3_Update keccak_Update
+#define shake_Update keccak_Update
+
+/* ----- Finalize (fixed-length digest) ----- */
+void sha3_Finalize(SHA3_CTX *ctx, unsigned char *result);   /* pad 0x06 */
+void keccak_Finalize(SHA3_CTX *ctx, unsigned char *result); /* pad 0x01 */
+
+/* ----- SHAKE XOF ----- */
+void shake_Finalize(SHA3_CTX *ctx);
+void shake_Squeeze(SHA3_CTX *ctx, unsigned char *out, size_t out_len);
+
+/* ----- One-shot convenience ----- */
+void sha3_256(const unsigned char *data, size_t len, unsigned char *digest);
+void sha3_512(const unsigned char *data, size_t len, unsigned char *digest);
+void keccak_256(const unsigned char *data, size_t len, unsigned char *digest);
+void keccak_512(const unsigned char *data, size_t len, unsigned char *digest);
+void shake128(const unsigned char *data, size_t len, unsigned char *out, size_t out_len);
+void shake256(const unsigned char *data, size_t len, unsigned char *out, size_t out_len);
+
+/* ----- Keccak Init aliases (same rate as SHA-3, different padding at finalize) ----- */
 #define keccak_224_Init sha3_224_Init
 #define keccak_256_Init sha3_256_Init
 #define keccak_384_Init sha3_384_Init
 #define keccak_512_Init sha3_512_Init
-#define keccak_Update sha3_Update
-void keccak_Final(SHA3_CTX *ctx, unsigned char *result);
-void keccak_256(const unsigned char *data, size_t len, unsigned char *digest);
-void keccak_512(const unsigned char *data, size_t len, unsigned char *digest);
 
-/* One-shot SHA-3 */
-void sha3_256(const unsigned char *data, size_t len, unsigned char *digest);
-void sha3_512(const unsigned char *data, size_t len, unsigned char *digest);
-
-/* ----- SHAKE XOF ----- */
-void shake128_Init(SHA3_CTX *ctx);
-void shake256_Init(SHA3_CTX *ctx);
-void shake_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size);
-void shake_Finalize(SHA3_CTX *ctx);
-void shake_Squeeze(SHA3_CTX *ctx, unsigned char *out, size_t out_len);
-
-/* One-shot SHAKE */
-void shake128(const unsigned char *data, size_t len, unsigned char *out, size_t out_len);
-void shake256(const unsigned char *data, size_t len, unsigned char *out, size_t out_len);
+/* ----- Backward compatibility ----- */
+#define sha3_Final sha3_Finalize
+#define keccak_Final keccak_Finalize
 
 #endif /* __SHA3_H__ */

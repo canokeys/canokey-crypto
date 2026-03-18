@@ -2,7 +2,7 @@
  * SHA-3 / Keccak / SHAKE implementation based on FIPS 202.
  *
  * Keccak-f[1600] permutation derived from Mbed TLS (Apache-2.0 OR GPL-2.0-or-later),
- * using compressed iota round constants to minimize ROM usage.
+ * using compressed round constants to minimize ROM usage.
  *
  * SHA-3, Keccak, and SHAKE wrappers written for canokey-crypto.
  *
@@ -12,6 +12,50 @@
 #include "sha3.h"
 #include <memzero.h>
 #include <string.h>
+
+/* ---------- Endianness helpers ---------- */
+
+/*
+ * Keccak state lanes are defined as little-endian uint64_t.
+ * On big-endian platforms we must byte-swap when loading/storing.
+ */
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define KECCAK_BIG_ENDIAN 1
+static inline uint64_t le64_load(const uint8_t *p) {
+  uint64_t v;
+  memcpy(&v, p, 8);
+  return __builtin_bswap64(v);
+}
+static inline void le64_store(uint8_t *p, uint64_t v) {
+  v = __builtin_bswap64(v);
+  memcpy(p, &v, 8);
+}
+#else
+#define KECCAK_BIG_ENDIAN 0
+#endif
+
+/* XOR byte into the sponge state at byte position pos (endian-safe) */
+static inline void state_xor_byte(uint64_t *state, unsigned pos, uint8_t val) {
+#if KECCAK_BIG_ENDIAN
+  /* On big-endian, byte pos within a lane must be mirrored */
+  unsigned lane = pos >> 3;
+  unsigned byte_in_lane = pos & 7;
+  state[lane] ^= (uint64_t)val << (byte_in_lane * 8);
+#else
+  ((uint8_t *)state)[pos] ^= val;
+#endif
+}
+
+/* Read byte from sponge state at byte position pos (endian-safe) */
+static inline uint8_t state_get_byte(const uint64_t *state, unsigned pos) {
+#if KECCAK_BIG_ENDIAN
+  unsigned lane = pos >> 3;
+  unsigned byte_in_lane = pos & 7;
+  return (uint8_t)(state[lane] >> (byte_in_lane * 8));
+#else
+  return ((const uint8_t *)state)[pos];
+#endif
+}
 
 /* ---------- Keccak-f[1600] permutation (from Mbed TLS, size-optimized) ---------- */
 
@@ -97,30 +141,23 @@ static void keccak_f1600(uint64_t s[25]) {
   }
 }
 
-/* ---------- Internal absorb / squeeze helpers ---------- */
+/* ---------- Internal sponge operations ---------- */
 
-#define SHA3_FINALIZED 0x80000000u
-#define SHA3_SQUEEZED 0x40000000u
+#define SPONGE_FINALIZED 0x80000000u
+#define SPONGE_SQUEEZED 0x40000000u
+#define SPONGE_INDEX_MASK 0x0000FFFFu
 
-/*
- * Absorb data into the sponge. Works for SHA-3, Keccak, and SHAKE.
- * ctx->block_size is the rate in bytes.
- */
 static void keccak_absorb(SHA3_CTX *ctx, const uint8_t *data, size_t len) {
-  unsigned idx = ctx->rest & ~(SHA3_FINALIZED | SHA3_SQUEEZED);
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
   const unsigned rate = ctx->block_size;
-
-  ctx->rest = idx; /* clear flags during absorb (re-absorb after squeeze is illegal) */
 
   while (len > 0) {
     unsigned todo = rate - idx;
     if (todo > len) todo = (unsigned)len;
 
-    /* XOR data into state byte-by-byte */
-    for (unsigned i = 0; i < todo; i++) {
-      unsigned pos = idx + i;
-      ((uint8_t *)ctx->hash)[pos] ^= data[i];
-    }
+    for (unsigned i = 0; i < todo; i++)
+      state_xor_byte(ctx->hash, idx + i, data[i]);
+
     idx += todo;
     data += todo;
     len -= todo;
@@ -133,33 +170,20 @@ static void keccak_absorb(SHA3_CTX *ctx, const uint8_t *data, size_t len) {
   ctx->rest = idx;
 }
 
-/*
- * Finalize (pad) the sponge. pad_byte differentiates:
- *   SHA-3:  0x06
- *   Keccak: 0x01
- *   SHAKE:  0x1F
- */
 static void keccak_pad(SHA3_CTX *ctx, uint8_t pad_byte) {
-  unsigned idx = ctx->rest & ~(SHA3_FINALIZED | SHA3_SQUEEZED);
+  unsigned idx = ctx->rest & SPONGE_INDEX_MASK;
   const unsigned rate = ctx->block_size;
 
-  ((uint8_t *)ctx->hash)[idx] ^= pad_byte;
-  ((uint8_t *)ctx->hash)[rate - 1] ^= 0x80;
+  state_xor_byte(ctx->hash, idx, pad_byte);
+  state_xor_byte(ctx->hash, rate - 1, 0x80);
   keccak_f1600(ctx->hash);
 
-  ctx->rest = SHA3_FINALIZED;
+  ctx->rest = SPONGE_FINALIZED;
 }
 
-/*
- * Squeeze output from the sponge (for XOF: SHAKE).
- * May be called multiple times after finalize.
- */
 static void keccak_squeeze(SHA3_CTX *ctx, uint8_t *out, size_t out_len) {
   const unsigned rate = ctx->block_size;
-  /* squeeze_pos is stored in low bits when SQUEEZED flag is set */
-  unsigned pos = (ctx->rest & SHA3_SQUEEZED) ? (ctx->rest & 0xFFFF) : 0;
-
-  ctx->rest = SHA3_FINALIZED | SHA3_SQUEEZED | pos;
+  unsigned pos = (ctx->rest & SPONGE_SQUEEZED) ? (ctx->rest & SPONGE_INDEX_MASK) : 0;
 
   while (out_len > 0) {
     if (pos == rate) {
@@ -168,104 +192,100 @@ static void keccak_squeeze(SHA3_CTX *ctx, uint8_t *out, size_t out_len) {
     }
     unsigned avail = rate - pos;
     unsigned todo = (out_len < avail) ? (unsigned)out_len : avail;
-    memcpy(out, (uint8_t *)ctx->hash + pos, todo);
+
+    for (unsigned i = 0; i < todo; i++)
+      out[i] = state_get_byte(ctx->hash, pos + i);
+
     pos += todo;
     out += todo;
     out_len -= todo;
   }
-  ctx->rest = SHA3_FINALIZED | SHA3_SQUEEZED | pos;
+  ctx->rest = SPONGE_FINALIZED | SPONGE_SQUEEZED | pos;
 }
 
-/* ---------- SHA-3 Init ---------- */
+/* Internal: finalize + extract fixed-length digest (for SHA-3 / Keccak) */
+static void keccak_finalize_hash(SHA3_CTX *ctx, uint8_t pad_byte, unsigned char *result) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, pad_byte);
+  unsigned digest_len = (200 - ctx->block_size) / 2;
+  keccak_squeeze(ctx, result, digest_len);
+  memzero(ctx, sizeof(SHA3_CTX));
+}
 
-static void sha3_init(SHA3_CTX *ctx, unsigned block_size) {
+/* ---------- Init ---------- */
+
+static void sponge_init(SHA3_CTX *ctx, unsigned block_size) {
   memzero(ctx, sizeof(SHA3_CTX));
   ctx->block_size = block_size;
 }
 
-__attribute__((weak)) void sha3_224_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHA3_224_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_256_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHA3_256_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_384_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHA3_384_BLOCK_LENGTH); }
-__attribute__((weak)) void sha3_512_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHA3_512_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_224_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHA3_224_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_256_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHA3_256_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_384_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHA3_384_BLOCK_LENGTH); }
+__attribute__((weak)) void sha3_512_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHA3_512_BLOCK_LENGTH); }
+__attribute__((weak)) void shake128_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHAKE128_BLOCK_LENGTH); }
+__attribute__((weak)) void shake256_Init(SHA3_CTX *ctx) { sponge_init(ctx, SHAKE256_BLOCK_LENGTH); }
 
-/* ---------- SHA-3 / Keccak Update ---------- */
+/* ---------- Update (shared by all modes) ---------- */
 
-__attribute__((weak)) void sha3_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
+__attribute__((weak)) void keccak_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
   keccak_absorb(ctx, msg, size);
 }
 
-/* ---------- SHA-3 Final (pad = 0x06) ---------- */
+/* ---------- Finalize ---------- */
 
-__attribute__((weak)) void sha3_Final(SHA3_CTX *ctx, unsigned char *result) {
-  if (!(ctx->rest & SHA3_FINALIZED)) keccak_pad(ctx, 0x06);
-  /* Output: hash_size = 200 - 2 * (200 - block_size) / 2 ... simpler: */
-  unsigned digest_len = (200 - ctx->block_size) / 2;
-  memcpy(result, ctx->hash, digest_len);
-  memzero(ctx, sizeof(SHA3_CTX));
+__attribute__((weak)) void sha3_Finalize(SHA3_CTX *ctx, unsigned char *result) {
+  keccak_finalize_hash(ctx, 0x06, result);
 }
 
-/* ---------- Keccak Final (pad = 0x01) ---------- */
-
-__attribute__((weak)) void keccak_Final(SHA3_CTX *ctx, unsigned char *result) {
-  if (!(ctx->rest & SHA3_FINALIZED)) keccak_pad(ctx, 0x01);
-  unsigned digest_len = (200 - ctx->block_size) / 2;
-  memcpy(result, ctx->hash, digest_len);
-  memzero(ctx, sizeof(SHA3_CTX));
+__attribute__((weak)) void keccak_Finalize(SHA3_CTX *ctx, unsigned char *result) {
+  keccak_finalize_hash(ctx, 0x01, result);
 }
 
-/* ---------- Convenience one-shot ---------- */
+__attribute__((weak)) void shake_Finalize(SHA3_CTX *ctx) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
+}
+
+/* ---------- Squeeze (SHAKE XOF) ---------- */
+
+__attribute__((weak)) void shake_Squeeze(SHA3_CTX *ctx, unsigned char *out, size_t out_len) {
+  if (!(ctx->rest & SPONGE_FINALIZED)) keccak_pad(ctx, 0x1F);
+  keccak_squeeze(ctx, out, out_len);
+}
+
+/* ---------- One-shot convenience ---------- */
 
 __attribute__((weak)) void keccak_256(const unsigned char *data, size_t len, unsigned char *digest) {
   SHA3_CTX ctx;
   sha3_256_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  keccak_Final(&ctx, digest);
+  keccak_Update(&ctx, data, len);
+  keccak_Finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void keccak_512(const unsigned char *data, size_t len, unsigned char *digest) {
   SHA3_CTX ctx;
   sha3_512_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  keccak_Final(&ctx, digest);
+  keccak_Update(&ctx, data, len);
+  keccak_Finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void sha3_256(const unsigned char *data, size_t len, unsigned char *digest) {
   SHA3_CTX ctx;
   sha3_256_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  sha3_Final(&ctx, digest);
+  keccak_Update(&ctx, data, len);
+  sha3_Finalize(&ctx, digest);
 }
 
 __attribute__((weak)) void sha3_512(const unsigned char *data, size_t len, unsigned char *digest) {
   SHA3_CTX ctx;
   sha3_512_Init(&ctx);
-  sha3_Update(&ctx, data, len);
-  sha3_Final(&ctx, digest);
+  keccak_Update(&ctx, data, len);
+  sha3_Finalize(&ctx, digest);
 }
 
-/* ---------- SHAKE128 / SHAKE256 ---------- */
-
-__attribute__((weak)) void shake128_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHAKE128_BLOCK_LENGTH); }
-__attribute__((weak)) void shake256_Init(SHA3_CTX *ctx) { sha3_init(ctx, SHAKE256_BLOCK_LENGTH); }
-
-__attribute__((weak)) void shake_Update(SHA3_CTX *ctx, const unsigned char *msg, size_t size) {
-  keccak_absorb(ctx, msg, size);
-}
-
-__attribute__((weak)) void shake_Finalize(SHA3_CTX *ctx) {
-  if (!(ctx->rest & SHA3_FINALIZED)) keccak_pad(ctx, 0x1F);
-}
-
-__attribute__((weak)) void shake_Squeeze(SHA3_CTX *ctx, unsigned char *out, size_t out_len) {
-  if (!(ctx->rest & SHA3_FINALIZED)) keccak_pad(ctx, 0x1F);
-  keccak_squeeze(ctx, out, out_len);
-}
-
-/* One-shot SHAKE with fixed output length */
 __attribute__((weak)) void shake128(const unsigned char *data, size_t len, unsigned char *out, size_t out_len) {
   SHA3_CTX ctx;
   shake128_Init(&ctx);
-  shake_Update(&ctx, data, len);
+  keccak_Update(&ctx, data, len);
   shake_Finalize(&ctx);
   shake_Squeeze(&ctx, out, out_len);
   memzero(&ctx, sizeof(SHA3_CTX));
@@ -274,7 +294,7 @@ __attribute__((weak)) void shake128(const unsigned char *data, size_t len, unsig
 __attribute__((weak)) void shake256(const unsigned char *data, size_t len, unsigned char *out, size_t out_len) {
   SHA3_CTX ctx;
   shake256_Init(&ctx);
-  shake_Update(&ctx, data, len);
+  keccak_Update(&ctx, data, len);
   shake_Finalize(&ctx);
   shake_Squeeze(&ctx, out, out_len);
   memzero(&ctx, sizeof(SHA3_CTX));

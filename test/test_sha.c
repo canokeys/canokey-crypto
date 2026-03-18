@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <cmocka.h>
-#include <hmac.h>
+// clang-format off
 #include <setjmp.h>
-#include <sha.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <cmocka.h>
+// clang-format on
+#include <hmac.h>
+#include <sha.h>
 
 static void test_sha1(void **state) {
   (void)state;
