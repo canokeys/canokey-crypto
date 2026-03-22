@@ -3,8 +3,9 @@
  *
  * The sponge state (ctx->hash) is stored in XKCP's inplace-32bi
  * (bit-interleaved) format throughout the entire sponge lifecycle.
- * All absorb / pad / squeeze operations use the XKCP SnP assembly
- * interface directly, avoiding per-permutation format conversions.
+ * All absorb / pad / squeeze operations use the XKCP SnP interface
+ * directly.  A portable C default lives in keccak_p1600.c; platforms
+ * may override those weak symbols with optimised assembly.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -18,13 +19,13 @@
 #include <sha3.h>
 #include <string.h>
 
-/* ---------- XKCP SnP interface (provided by keccak_f1600_armv6m.s) ---------- */
+/* ---------- XKCP SnP interface (default: keccak_p1600.c, overridable) ---------- */
 
 extern void KeccakP1600_Initialize(void *state);
 extern void KeccakP1600_AddByte(void *state, unsigned char byte, unsigned int offset);
 extern void KeccakP1600_AddBytes(void *state, const unsigned char *data,
                                  unsigned int offset, unsigned int length);
-extern void KeccakP1600_ExtractBytes(void *state, unsigned char *data,
+extern void KeccakP1600_ExtractBytes(const void *state, unsigned char *data,
                                      unsigned int offset, unsigned int length);
 extern void KeccakP1600_Permute_24rounds(void *state);
 
