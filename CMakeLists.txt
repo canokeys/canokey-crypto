@@ -26,12 +26,12 @@ endif()
 file(GLOB SRC src/*.c)
 add_library(canokey-crypto STATIC ${SRC})
 if(USE_MBEDCRYPTO)
-    target_compile_definitions(canokey-crypto PRIVATE USE_MBEDCRYPTO)
+    target_compile_definitions(canokey-crypto PUBLIC USE_MBEDCRYPTO)
     target_link_libraries(canokey-crypto tfpsacrypto)
     target_include_directories(
         canokey-crypto
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/include
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/drivers/builtin/include
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/include
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/drivers/builtin/include
     )
 endif()
 target_include_directories(canokey-crypto PUBLIC include)
