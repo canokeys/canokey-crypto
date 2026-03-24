@@ -389,16 +389,17 @@ __attribute__((weak)) int sm2_z(const uint8_t *id, const ecc_key_t *key, uint8_t
   const uint8_t yg[] = {0xBC, 0x37, 0x36, 0xA2, 0xF4, 0xF6, 0x77, 0x9C, 0x59, 0xBD, 0xCE, 0xE3, 0x6B, 0x69, 0x21, 0x53,
                         0xD0, 0xA9, 0x87, 0x7C, 0xC6, 0x2A, 0x47, 0x40, 0x02, 0xDF, 0x32, 0xE5, 0x21, 0x39, 0xF0, 0xA0};
   const uint8_t entl[2] = {id[0] * 8 >> 8, id[0] * 8 & 0xFF};
+  sm3_ctx_t sm3;
 
-  sm3_init();
-  sm3_update(entl, sizeof(entl));
-  sm3_update(id + 1, id[0]);
-  sm3_update(a, sizeof(a));
-  sm3_update(b, sizeof(b));
-  sm3_update(xg, sizeof(xg));
-  sm3_update(yg, sizeof(yg));
-  sm3_update(key->pub, PUBLIC_KEY_LENGTH[SM2]);
-  sm3_final(z);
+  sm3_init(&sm3);
+  sm3_update(&sm3, entl, sizeof(entl));
+  sm3_update(&sm3, id + 1, id[0]);
+  sm3_update(&sm3, a, sizeof(a));
+  sm3_update(&sm3, b, sizeof(b));
+  sm3_update(&sm3, xg, sizeof(xg));
+  sm3_update(&sm3, yg, sizeof(yg));
+  sm3_update(&sm3, key->pub, PUBLIC_KEY_LENGTH[SM2]);
+  sm3_final(&sm3, z);
 
   return 0;
 }
@@ -641,11 +642,12 @@ __attribute__((weak)) void K__ed25519_sign(const unsigned char *m, size_t mlen, 
   mbedtls_ecp_group_load(&ed25519, MBEDTLS_ECP_DP_ED25519);
 
   // nonce: r = SHA-512(digest[32..63] || m) mod N
-  sha512_init();
-  sha512_update(digest + 32, 32);
-  sha512_update(m, mlen);
+  sha512_ctx_t sha512_ctx;
+  sha512_init(&sha512_ctx);
+  sha512_update(&sha512_ctx, digest + 32, 32);
+  sha512_update(&sha512_ctx, m, mlen);
   uint8_t nonce_hash[SHA512_DIGEST_LENGTH];
-  sha512_final(nonce_hash);
+  sha512_final(&sha512_ctx, nonce_hash);
 
   mbedtls_mpi r, k, s;
   mbedtls_mpi_init(&r);
@@ -671,11 +673,11 @@ __attribute__((weak)) void K__ed25519_sign(const unsigned char *m, size_t mlen, 
   K__ed25519_publickey(sk, pub);
 
   // k = SHA-512(R || A || m) mod N
-  sha512_init();
-  sha512_update(rs, 32);
-  sha512_update(pub, 32);
-  sha512_update(m, mlen);
-  sha512_final(nonce_hash);
+  sha512_init(&sha512_ctx);
+  sha512_update(&sha512_ctx, rs, 32);
+  sha512_update(&sha512_ctx, pub, 32);
+  sha512_update(&sha512_ctx, m, mlen);
+  sha512_final(&sha512_ctx, nonce_hash);
 
   mbedtls_mpi_read_binary_le(&k, nonce_hash, 64);
   mbedtls_mpi_mod_mpi(&k, &k, &ed25519.N);

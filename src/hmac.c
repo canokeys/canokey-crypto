@@ -37,22 +37,21 @@ void hmac_sha1_Init(HMAC_SHA1_CTX *hctx, const uint8_t *key, const size_t keylen
     hctx->o_key_pad[i] = i_key_pad[i] ^ 0x5c;
     i_key_pad[i] ^= 0x36;
   }
-  sha1_init();
-  sha1_update(i_key_pad, SHA1_BLOCK_LENGTH);
+  sha1_init(&hctx->hash_ctx);
+  sha1_update(&hctx->hash_ctx, i_key_pad, SHA1_BLOCK_LENGTH);
   memzero(i_key_pad, sizeof(i_key_pad));
 }
 
-void hmac_sha1_Update(const HMAC_SHA1_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void)hctx;
-  sha1_update(msg, msglen);
+void hmac_sha1_Update(HMAC_SHA1_CTX *hctx, const uint8_t *msg, const size_t msglen) {
+  sha1_update(&hctx->hash_ctx, msg, msglen);
 }
 
 void hmac_sha1_Final(HMAC_SHA1_CTX *hctx, uint8_t *hmac) {
-  sha1_final(hmac);
-  sha1_init();
-  sha1_update(hctx->o_key_pad, SHA1_BLOCK_LENGTH);
-  sha1_update(hmac, SHA1_DIGEST_LENGTH);
-  sha1_final(hmac);
+  sha1_final(&hctx->hash_ctx, hmac);
+  sha1_init(&hctx->hash_ctx);
+  sha1_update(&hctx->hash_ctx, hctx->o_key_pad, SHA1_BLOCK_LENGTH);
+  sha1_update(&hctx->hash_ctx, hmac, SHA1_DIGEST_LENGTH);
+  sha1_final(&hctx->hash_ctx, hmac);
   memzero(hctx, sizeof(HMAC_SHA1_CTX));
 }
 
@@ -75,22 +74,21 @@ void hmac_sha256_Init(HMAC_SHA256_CTX *hctx, const uint8_t *key, const size_t ke
     hctx->o_key_pad[i] = i_key_pad[i] ^ 0x5c;
     i_key_pad[i] ^= 0x36;
   }
-  sha256_init();
-  sha256_update(i_key_pad, SHA256_BLOCK_LENGTH);
+  sha256_init(&hctx->hash_ctx);
+  sha256_update(&hctx->hash_ctx, i_key_pad, SHA256_BLOCK_LENGTH);
   memzero(i_key_pad, sizeof(i_key_pad));
 }
 
-void hmac_sha256_Update(const HMAC_SHA256_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void)hctx;
-  sha256_update(msg, msglen);
+void hmac_sha256_Update(HMAC_SHA256_CTX *hctx, const uint8_t *msg, const size_t msglen) {
+  sha256_update(&hctx->hash_ctx, msg, msglen);
 }
 
 void hmac_sha256_Final(HMAC_SHA256_CTX *hctx, uint8_t *hmac) {
-  sha256_final(hmac);
-  sha256_init();
-  sha256_update(hctx->o_key_pad, SHA256_BLOCK_LENGTH);
-  sha256_update(hmac, SHA256_DIGEST_LENGTH);
-  sha256_final(hmac);
+  sha256_final(&hctx->hash_ctx, hmac);
+  sha256_init(&hctx->hash_ctx);
+  sha256_update(&hctx->hash_ctx, hctx->o_key_pad, SHA256_BLOCK_LENGTH);
+  sha256_update(&hctx->hash_ctx, hmac, SHA256_DIGEST_LENGTH);
+  sha256_final(&hctx->hash_ctx, hmac);
   memzero(hctx, sizeof(HMAC_SHA256_CTX));
 }
 
@@ -113,22 +111,21 @@ void hmac_sha512_Init(HMAC_SHA512_CTX *hctx, const uint8_t *key, const size_t ke
     hctx->o_key_pad[i] = i_key_pad[i] ^ 0x5c;
     i_key_pad[i] ^= 0x36;
   }
-  sha512_init();
-  sha512_update(i_key_pad, SHA512_BLOCK_LENGTH);
+  sha512_init(&hctx->hash_ctx);
+  sha512_update(&hctx->hash_ctx, i_key_pad, SHA512_BLOCK_LENGTH);
   memzero(i_key_pad, sizeof(i_key_pad));
 }
 
-void hmac_sha512_Update(const HMAC_SHA512_CTX *hctx, const uint8_t *msg, const size_t msglen) {
-  (void)hctx;
-  sha512_update(msg, msglen);
+void hmac_sha512_Update(HMAC_SHA512_CTX *hctx, const uint8_t *msg, const size_t msglen) {
+  sha512_update(&hctx->hash_ctx, msg, msglen);
 }
 
 void hmac_sha512_Final(HMAC_SHA512_CTX *hctx, uint8_t *hmac) {
-  sha512_final(hmac);
-  sha512_init();
-  sha512_update(hctx->o_key_pad, SHA512_BLOCK_LENGTH);
-  sha512_update(hmac, SHA512_DIGEST_LENGTH);
-  sha512_final(hmac);
+  sha512_final(&hctx->hash_ctx, hmac);
+  sha512_init(&hctx->hash_ctx);
+  sha512_update(&hctx->hash_ctx, hctx->o_key_pad, SHA512_BLOCK_LENGTH);
+  sha512_update(&hctx->hash_ctx, hmac, SHA512_DIGEST_LENGTH);
+  sha512_final(&hctx->hash_ctx, hmac);
   memzero(hctx, sizeof(HMAC_SHA512_CTX));
 }
 
