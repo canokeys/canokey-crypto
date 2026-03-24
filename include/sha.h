@@ -29,20 +29,33 @@ typedef struct {
   psa_hash_operation_t op;
 } sha512_ctx_t;
 #else
+// Hardware platforms may override SHA_HW_STATE_WORDS to enlarge digest_buf
+// for engines that store internal metadata (e.g. message length) alongside the
+// hash state.  The default is sized for software-only implementations.
+#ifdef SHA_HW_STATE_WORDS
+#define SHA1_CTX_DIGEST_WORDS   SHA_HW_STATE_WORDS
+#define SHA256_CTX_DIGEST_WORDS SHA_HW_STATE_WORDS
+#define SHA512_CTX_DIGEST_WORDS SHA_HW_STATE_WORDS
+#else
+#define SHA1_CTX_DIGEST_WORDS   (SHA1_DIGEST_LENGTH / sizeof(unsigned int))
+#define SHA256_CTX_DIGEST_WORDS (SHA256_DIGEST_LENGTH / sizeof(unsigned int))
+#define SHA512_CTX_DIGEST_WORDS (SHA512_DIGEST_LENGTH / sizeof(unsigned int))
+#endif
+
 typedef struct {
-  unsigned int digest_buf[SHA1_DIGEST_LENGTH / sizeof(unsigned int)];
+  unsigned int digest_buf[SHA1_CTX_DIGEST_WORDS];
   uint8_t block_buf[SHA1_BLOCK_LENGTH];
   uint8_t block_buf_size;
 } sha1_ctx_t;
 
 typedef struct {
-  unsigned int digest_buf[SHA256_DIGEST_LENGTH / sizeof(unsigned int)];
+  unsigned int digest_buf[SHA256_CTX_DIGEST_WORDS];
   uint8_t block_buf[SHA256_BLOCK_LENGTH];
   uint8_t block_buf_size;
 } sha256_ctx_t;
 
 typedef struct {
-  unsigned int digest_buf[SHA512_DIGEST_LENGTH / sizeof(unsigned int)];
+  unsigned int digest_buf[SHA512_CTX_DIGEST_WORDS];
   uint8_t block_buf[SHA512_BLOCK_LENGTH];
   uint8_t block_buf_size;
 } sha512_ctx_t;
