@@ -2,6 +2,7 @@
 #ifndef CANOKEY_CRYPTO_SM3_H_
 #define CANOKEY_CRYPTO_SM3_H_
 
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,7 +27,7 @@ typedef struct {
 #endif
 
 typedef struct {
-  unsigned int digest_buf[SM3_CTX_DIGEST_WORDS];
+  alignas(4) unsigned int digest_buf[SM3_CTX_DIGEST_WORDS];
   uint8_t block_buf[SM3_BLOCK_LENGTH];
   uint8_t block_buf_size;
 } sm3_ctx_t;
