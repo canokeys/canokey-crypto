@@ -32,6 +32,7 @@ if(USE_MBEDCRYPTO)
         canokey-crypto
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/include
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/drivers/builtin/include
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto/drivers/pqcp/mldsa-native/mldsa
     )
 endif()
 target_include_directories(canokey-crypto PUBLIC include)
