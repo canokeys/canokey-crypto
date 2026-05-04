@@ -22,14 +22,26 @@ static const uint8_t encaps_seed[MLKEM768_ENCAPS_SEED_BYTES] = {
 static void test_ml_kem_768_roundtrip(void **state) {
   (void)state;
 
-  uint8_t ek[MLKEM768_PUBLIC_KEY_BYTES];
-  uint8_t dk[MLKEM768_SECRET_KEY_BYTES];
-  uint8_t ct[MLKEM768_CIPHERTEXT_BYTES];
+  static uint8_t ek[MLKEM768_PUBLIC_KEY_BYTES];
+  static uint8_t dk[MLKEM768_SECRET_KEY_BYTES];
+  static uint8_t ek_repeat[MLKEM768_PUBLIC_KEY_BYTES];
+  static uint8_t dk_repeat[MLKEM768_SECRET_KEY_BYTES];
+  static uint8_t ct[MLKEM768_CIPHERTEXT_BYTES];
+  static uint8_t ct_repeat[MLKEM768_CIPHERTEXT_BYTES];
   uint8_t ss_enc[MLKEM768_SHARED_KEY_BYTES];
   uint8_t ss_dec[MLKEM768_SHARED_KEY_BYTES];
+  uint8_t ss_repeat[MLKEM768_SHARED_KEY_BYTES];
 
   assert_int_equal(ml_kem_768_keygen(ek, dk, keygen_seed), 0);
+  assert_int_equal(ml_kem_768_keygen(ek_repeat, dk_repeat, keygen_seed), 0);
+  assert_memory_equal(ek, ek_repeat, sizeof(ek));
+  assert_memory_equal(dk, dk_repeat, sizeof(dk));
+
   assert_int_equal(ml_kem_768_encaps(ct, ss_enc, ek, encaps_seed), 0);
+  assert_int_equal(ml_kem_768_encaps(ct_repeat, ss_repeat, ek, encaps_seed), 0);
+  assert_memory_equal(ct, ct_repeat, sizeof(ct));
+  assert_memory_equal(ss_enc, ss_repeat, sizeof(ss_enc));
+
   assert_int_equal(ml_kem_768_decaps(ss_dec, ct, dk), 0);
   assert_memory_equal(ss_enc, ss_dec, sizeof(ss_enc));
 

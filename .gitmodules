@@ -1,3 +1,6 @@
 [submodule "tf-psa-crypto"]
 	path = tf-psa-crypto
 	url = https://github.com/Mbed-TLS/TF-PSA-Crypto.git
+[submodule "third_party/mlkem-native"]
+	path = third_party/mlkem-native
+	url = https://github.com/pq-code-package/mlkem-native.git
