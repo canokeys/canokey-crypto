@@ -14,6 +14,8 @@ typedef enum {
   RSA3072,
   RSA4096,
   SECP521R1,
+  MLKEM768,
+  MLDSA65,
   KEY_TYPE_PKC_END,
   TDEA,
   AES128,
@@ -30,5 +32,7 @@ extern const size_t SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
 #define IS_SHORT_WEIERSTRASS(type)                                                                                     \
   ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SECP521R1 || (type) == SM2)
 #define IS_RSA(type) ((type) == RSA2048 || (type) == RSA3072 || (type) == RSA4096)
+#define IS_MLKEM(type) ((type) == MLKEM768)
+#define IS_MLDSA(type) ((type) == MLDSA65)
 
 #endif // CANOKEY_CRYPTO_ALGO_H
