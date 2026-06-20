@@ -365,18 +365,29 @@ size_t ecdsa_sig2ansi(uint8_t key_len, const uint8_t *input, uint8_t *output) {
   uint8_t part2_len = key_len - leading_zero_len2;
   if (leading_zero_len1 < 0) leading_zero_len1 = 0;
   if (leading_zero_len2 < 0) leading_zero_len2 = 0;
-  memmove(output + 6 + part1_len + (part2_len == key_len + 1 ? 1 : 0), input + key_len + leading_zero_len2,
-          key_len - leading_zero_len2);
-  memmove(output + 4 + (part1_len == key_len + 1 ? 1 : 0), input + leading_zero_len1, key_len - leading_zero_len1);
+  const uint16_t content_len = part1_len + part2_len + 4;
+  const uint8_t seq_len_len = content_len > 127 ? 2 : 1;
+  const size_t seq_header_len = 1 + seq_len_len;
+  const size_t part1_value_off = seq_header_len + 2 + (part1_len == key_len + 1 ? 1 : 0);
+  const size_t part2_tag_off = seq_header_len + 2 + part1_len;
+  const size_t part2_value_off = part2_tag_off + 2 + (part2_len == key_len + 1 ? 1 : 0);
+
+  memmove(output + part2_value_off, input + key_len + leading_zero_len2, key_len - leading_zero_len2);
+  memmove(output + part1_value_off, input + leading_zero_len1, key_len - leading_zero_len1);
   output[0] = 0x30;
-  output[1] = part1_len + part2_len + 4;
-  output[2] = 0x02;
-  output[3] = part1_len;
-  if (part1_len == key_len + 1) output[4] = 0;
-  output[4 + part1_len] = 0x02;
-  output[5 + part1_len] = part2_len;
-  if (part2_len == key_len + 1) output[6 + part1_len] = 0;
-  return 6 + part1_len + part2_len;
+  if (seq_len_len == 2) {
+    output[1] = 0x81;
+    output[2] = (uint8_t)content_len;
+  } else {
+    output[1] = (uint8_t)content_len;
+  }
+  output[seq_header_len] = 0x02;
+  output[seq_header_len + 1] = part1_len;
+  if (part1_len == key_len + 1) output[seq_header_len + 2] = 0;
+  output[part2_tag_off] = 0x02;
+  output[part2_tag_off + 1] = part2_len;
+  if (part2_len == key_len + 1) output[part2_tag_off + 2] = 0;
+  return seq_header_len + content_len;
 }
 
 __attribute__((weak)) int sm2_z(const uint8_t *id, const ecc_key_t *key, uint8_t *z) {

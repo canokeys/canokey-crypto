@@ -65,7 +65,7 @@ int ecc_sign(key_type_t type, const ecc_key_t *key, const uint8_t *data_or_diges
  *
  * @param key_len Length of the key
  * @param input   The original signature
- * @param output  ANSI X9.62 format. The buffer should be at least 2 * key_size + 6 bytes. The buffer can be identical
+ * @param output  ANSI X9.62 format. The buffer should be at least 2 * key_size + 7 bytes. The buffer can be identical
  * to the input.
  *
  * @return Length of signature

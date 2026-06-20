@@ -229,6 +229,28 @@ static void test_sig2ansi(void **state) {
   for (int i = 0; i != len; ++i) {
     assert_int_equal(input[i], expected[i]);
   }
+
+  uint8_t input_p521[132] = {0};
+  uint8_t output_p521[139] = {0};
+  uint8_t expected_p521[139] = {0};
+  input_p521[0] = 0x01;
+  input_p521[65] = 0x41;
+  input_p521[66] = 0x01;
+  input_p521[131] = 0x42;
+  expected_p521[0] = 0x30;
+  expected_p521[1] = 0x81;
+  expected_p521[2] = 0x88;
+  expected_p521[3] = 0x02;
+  expected_p521[4] = 0x42;
+  expected_p521[5] = 0x01;
+  expected_p521[70] = 0x41;
+  expected_p521[71] = 0x02;
+  expected_p521[72] = 0x42;
+  expected_p521[73] = 0x01;
+  expected_p521[138] = 0x42;
+  len = ecdsa_sig2ansi(66, input_p521, output_p521);
+  assert_int_equal(len, 139);
+  assert_memory_equal(output_p521, expected_p521, len);
 }
 
 static void test_sm2_z(void **state) {
