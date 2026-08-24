@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+#ifdef USE_MBEDCRYPTO
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+#endif
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
@@ -12,7 +16,6 @@
 #include "crypto-util.h"
 
 #ifdef USE_MBEDCRYPTO
-#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include <mbedtls/private/bignum.h>
 #include <mbedtls/private/ecp.h>
 

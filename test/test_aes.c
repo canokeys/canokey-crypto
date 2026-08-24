@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <cmocka.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
 
 #include <aes.h>
 #include <block-cipher.h>
+#include <cmocka.h>
 
 static void test_aes_ecb(void **state) {
   (void)state;
