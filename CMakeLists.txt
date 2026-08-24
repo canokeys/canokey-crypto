@@ -9,26 +9,25 @@ option(TEST_WITH_MBEDCRYPTO "Enable cross-validation tests against mbedtls" ON)
 option(USE_PLATFORM_KECCAK_P1600 "Use a platform-provided Keccak-p1600 implementation" OFF)
 
 if(USE_MBEDCRYPTO OR (ENABLE_CRYPTO_TESTS AND TEST_WITH_MBEDCRYPTO))
+    find_package(Git REQUIRED)
     set(USE_STATIC_TF_PSA_CRYPTO_LIBRARY ON CACHE BOOL "")
     set(USE_SHARED_TF_PSA_CRYPTO_LIBRARY OFF CACHE BOOL "")
     set(ENABLE_PROGRAMS OFF CACHE BOOL "")
     set(ENABLE_TESTING OFF CACHE BOOL "")
-    # Patch tf-psa-crypto with Ed25519 Edwards curve support. Check both
-    # directions first so repeated CMake configuration does not create .rej
-    # files for an already-applied patch.
+    # Patch tf-psa-crypto with Ed25519 Edwards curve support. Require exact
+    # context and check both directions so a stale or partially applied patch
+    # fails configuration without creating .rej files.
     execute_process(
-        COMMAND patch -p1 -s -N -V never --dry-run
+        COMMAND ${GIT_EXECUTABLE} apply --check ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto
-        INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
         RESULT_VARIABLE ED25519_PATCH_CAN_APPLY
         OUTPUT_QUIET
         ERROR_QUIET
     )
     if(ED25519_PATCH_CAN_APPLY EQUAL 0)
         execute_process(
-            COMMAND patch -p1 -s -N -V never
+            COMMAND ${GIT_EXECUTABLE} apply ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto
-            INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
             RESULT_VARIABLE ED25519_PATCH_RESULT
         )
         if(NOT ED25519_PATCH_RESULT EQUAL 0)
@@ -36,9 +35,8 @@ if(USE_MBEDCRYPTO OR (ENABLE_CRYPTO_TESTS AND TEST_WITH_MBEDCRYPTO))
         endif()
     else()
         execute_process(
-            COMMAND patch -p1 -s -R -V never --dry-run
+            COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto
-            INPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/tf-psa-crypto-ed25519.patch
             RESULT_VARIABLE ED25519_PATCH_IS_APPLIED
             OUTPUT_QUIET
             ERROR_QUIET

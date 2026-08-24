@@ -1,16 +1,16 @@
 diff --git a/drivers/builtin/include/mbedtls/private/ecp.h b/drivers/builtin/include/mbedtls/private/ecp.h
-index 1b6016735..24bfa5d9c 100644
+index bd2b454fe..f2c4df116 100644
 --- a/drivers/builtin/include/mbedtls/private/ecp.h
 +++ b/drivers/builtin/include/mbedtls/private/ecp.h
-@@ -110,6 +110,7 @@ typedef enum {
-     MBEDTLS_ECP_DP_SECP192K1,      /*!< Domain parameters for 192-bit "Koblitz" curve. */
+@@ -106,6 +106,7 @@ typedef enum {
+     MBEDTLS_ECP_DP_CURVE25519,     /*!< Domain parameters for Curve25519. */
      MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
      MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
 +    MBEDTLS_ECP_DP_ED25519,        /*!< Domain parameters for Ed25519. */
  } mbedtls_ecp_group_id;
  
  #if defined(MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS)
-@@ -125,6 +126,7 @@ typedef enum {
+@@ -121,6 +122,7 @@ typedef enum {
      MBEDTLS_ECP_TYPE_NONE = 0,
      MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS,    /* y^2 = x^3 + a x + b      */
      MBEDTLS_ECP_TYPE_MONTGOMERY,           /* y^2 = x^3 + a x^2 + x    */
@@ -18,7 +18,7 @@ index 1b6016735..24bfa5d9c 100644
  } mbedtls_ecp_curve_type;
  
  /**
-@@ -958,6 +960,12 @@ int mbedtls_ecp_mul(mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
+@@ -950,6 +952,12 @@ int mbedtls_ecp_mul(mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
                      const mbedtls_mpi *m, const mbedtls_ecp_point *P,
                      int (*f_rng)(void *, unsigned char *, size_t), void *p_rng);
  
@@ -32,10 +32,10 @@ index 1b6016735..24bfa5d9c 100644
   * \brief           This function performs multiplication of a point by
   *                  an integer: \p R = \p m * \p P in a restartable way.
 diff --git a/drivers/builtin/src/ecp.c b/drivers/builtin/src/ecp.c
-index 1e494bb3a..a19ee07a2 100644
+index ec72714e3..4379de2d2 100644
 --- a/drivers/builtin/src/ecp.c
 +++ b/drivers/builtin/src/ecp.c
-@@ -453,7 +453,13 @@ mbedtls_ecp_curve_type mbedtls_ecp_get_type(const mbedtls_ecp_group *grp)
+@@ -447,7 +447,13 @@ mbedtls_ecp_curve_type mbedtls_ecp_get_type(const mbedtls_ecp_group *grp)
  
      if (grp->G.Y.p == NULL) {
          return MBEDTLS_ECP_TYPE_MONTGOMERY;
@@ -50,7 +50,7 @@ index 1e494bb3a..a19ee07a2 100644
          return MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS;
      }
  }
-@@ -2472,6 +2478,222 @@ cleanup:
+@@ -2466,6 +2472,222 @@ cleanup:
  
  #endif /* MBEDTLS_ECP_MONTGOMERY_ENABLED */
  
@@ -273,7 +273,7 @@ index 1e494bb3a..a19ee07a2 100644
  /*
   * Restartable multiplication R = m * P
   *
-@@ -2519,6 +2741,11 @@ static int ecp_mul_restartable_internal(mbedtls_ecp_group *grp, mbedtls_ecp_poin
+@@ -2513,6 +2735,11 @@ static int ecp_mul_restartable_internal(mbedtls_ecp_group *grp, mbedtls_ecp_poin
          MBEDTLS_MPI_CHK(ecp_mul_comb(grp, R, m, P, f_rng, p_rng, rs_ctx));
      }
  #endif
@@ -285,7 +285,7 @@ index 1e494bb3a..a19ee07a2 100644
  
  cleanup:
  
-@@ -2846,6 +3073,49 @@ static int ecp_check_pubkey_mx(const mbedtls_ecp_group *grp, const mbedtls_ecp_p
+@@ -2840,6 +3067,49 @@ static int ecp_check_pubkey_mx(const mbedtls_ecp_group *grp, const mbedtls_ecp_p
  }
  #endif /* MBEDTLS_ECP_MONTGOMERY_ENABLED */
  
@@ -335,7 +335,7 @@ index 1e494bb3a..a19ee07a2 100644
  /*
   * Check that a point is valid as a public key
   */
-@@ -2866,6 +3136,11 @@ int mbedtls_ecp_check_pubkey(const mbedtls_ecp_group *grp,
+@@ -2860,6 +3130,11 @@ int mbedtls_ecp_check_pubkey(const mbedtls_ecp_group *grp,
      if (mbedtls_ecp_get_type(grp) == MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS) {
          return ecp_check_pubkey_sw(grp, pt);
      }
@@ -347,7 +347,7 @@ index 1e494bb3a..a19ee07a2 100644
  #endif
      return MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
  }
-@@ -2904,6 +3179,11 @@ int mbedtls_ecp_check_privkey(const mbedtls_ecp_group *grp,
+@@ -2898,6 +3173,11 @@ int mbedtls_ecp_check_privkey(const mbedtls_ecp_group *grp,
          }
      }
  #endif /* MBEDTLS_ECP_SHORT_WEIERSTRASS_ENABLED */
@@ -360,10 +360,10 @@ index 1e494bb3a..a19ee07a2 100644
      return MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
  }
 diff --git a/drivers/builtin/src/ecp_curves.c b/drivers/builtin/src/ecp_curves.c
-index 387871edf..75d6354c4 100644
+index 85a442fd3..28a90c0d4 100644
 --- a/drivers/builtin/src/ecp_curves.c
 +++ b/drivers/builtin/src/ecp_curves.c
-@@ -4065,7 +4065,7 @@ static int ecp_mod_p521(mbedtls_mpi *);
+@@ -3634,7 +3634,7 @@ static int ecp_mod_p521(mbedtls_mpi *);
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
  
  /* Additional forward declarations */
@@ -372,7 +372,7 @@ index 387871edf..75d6354c4 100644
  static int ecp_mod_p255(mbedtls_mpi *);
  #endif
  #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
-@@ -4203,6 +4203,48 @@ cleanup:
+@@ -3769,6 +3769,48 @@ cleanup:
  }
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
  
@@ -421,7 +421,7 @@ index 387871edf..75d6354c4 100644
  /*
   * Set a group using well-known domain parameters
   */
-@@ -4278,6 +4320,12 @@ int mbedtls_ecp_group_load(mbedtls_ecp_group *grp, mbedtls_ecp_group_id id)
+@@ -3832,6 +3874,12 @@ int mbedtls_ecp_group_load(mbedtls_ecp_group *grp, mbedtls_ecp_group_id id)
              return ecp_use_curve448(grp);
  #endif /* MBEDTLS_ECP_DP_CURVE448_ENABLED */
  
@@ -434,7 +434,7 @@ index 387871edf..75d6354c4 100644
          default:
              grp->id = MBEDTLS_ECP_DP_NONE;
              return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-@@ -4643,7 +4691,7 @@ cleanup:
+@@ -4126,7 +4174,7 @@ cleanup:
  
  #endif /* MBEDTLS_ECP_NIST_OPTIM */
  
@@ -443,7 +443,7 @@ index 387871edf..75d6354c4 100644
  
  /* Size of p255 in terms of mbedtls_mpi_uint */
  #define P255_WIDTH      (255 / 8 / sizeof(mbedtls_mpi_uint) + 1)
-@@ -4677,7 +4725,7 @@ static int ecp_mod_p255(mbedtls_mpi *N)
+@@ -4160,7 +4208,7 @@ static int ecp_mod_p255(mbedtls_mpi *N)
  
      return 0;
  }
