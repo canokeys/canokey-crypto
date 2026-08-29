@@ -3,12 +3,9 @@
 
 #include <string.h>
 
-#ifdef USE_MBEDCRYPTO
-#include <mbedtls/platform.h>
-#include <mbedtls/platform_util.h>
-
 enum {
   CANOKEY_MLDSA65_SEED_BYTES = MLDSA_SEEDBYTES,
+  CANOKEY_MLDSA65_CRH_BYTES = MLDSA_CRHBYTES,
   CANOKEY_MLDSA65_TR_BYTES = MLDSA_TRBYTES,
   CANOKEY_MLDSA65_C_TILDE_BYTES = MLDSA_C_TILDE_BYTES,
   CANOKEY_MLDSA65_POLYZ_PACKED_BYTES = MLDSA_POLYZ_PACKEDBYTES,
@@ -20,6 +17,10 @@ enum {
   CANOKEY_MLDSA65_SK_BYTES = MLDSA_SK_BYTES,
   CANOKEY_MLDSA65_SIG_BYTES = MLDSA_SIG_BYTES
 };
+
+#ifdef USE_MBEDCRYPTO
+#include <mbedtls/platform.h>
+#include <mbedtls/platform_util.h>
 
 #undef MLDSA_BETA
 
@@ -195,7 +196,8 @@ __attribute__((weak)) int ml_dsa_65_keygen(uint8_t *pk, uint8_t *sk, uint8_t *tr
 #endif
 }
 
-__attribute__((weak)) int ml_dsa_65_seed_to_tr(uint8_t *tr, const uint8_t *seed) {
+__attribute__((weak)) int ml_dsa_65_seed_to_tr(uint8_t tr[CANOKEY_MLDSA65_TR_BYTES],
+                                               const uint8_t seed[CANOKEY_MLDSA65_SEED_BYTES]) {
   if (tr == NULL || seed == NULL) return -1;
   return ml_dsa_65_keygen(NULL, NULL, tr, seed);
 }
@@ -338,7 +340,7 @@ __attribute__((weak)) int ml_dsa_65_sign_seed_streaming(uint8_t *out, size_t out
 }
 
 __attribute__((weak)) int ml_dsa_65_sign_seed_mu_streaming(uint8_t *out, size_t out_size, mldsa_sign_state_t *state,
-                                                           const uint8_t *mu) {
+                                                           const uint8_t mu[CANOKEY_MLDSA65_CRH_BYTES]) {
   if (state != NULL && state->phase == 0 && mu == NULL) return -1;
   return mldsa65_sign_seed_streaming_common(out, out_size, state, NULL, 0, NULL, 0, NULL, mu);
 }
