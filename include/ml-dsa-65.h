@@ -127,6 +127,7 @@ typedef struct {
   uint8_t challenge_pos[MLDSA_TAU];
   int8_t challenge_sign[MLDSA_TAU];
   uint16_t kappa;
+  uint8_t backend_state;       /* Opaque streaming-backend lifecycle token. */
 } mldsa_sign_state_t;
 
 /* Streaming sign from seed+tr.
@@ -167,10 +168,14 @@ int ml_dsa_65_sign_seed_mu_streaming(
     mldsa_sign_state_t *state,
     const uint8_t mu[MLDSA_CRHBYTES]);
 
+/** Cancel a signing stream and release backend resources. */
+void ml_dsa_65_sign_streaming_abort(mldsa_sign_state_t *state);
+
 /* State for streaming keygen (pk export). */
 typedef struct {
   uint8_t phase;
   uint8_t seed[32];
+  uint8_t backend_state;       /* Opaque streaming-backend lifecycle token. */
 } mldsa_keygen_state_t;
 
 /* Streaming keygen (pk export from seed).
@@ -190,5 +195,8 @@ int ml_dsa_65_keygen_streaming(
     uint8_t *out, size_t out_size,
     mldsa_keygen_state_t *state,
     uint8_t *tr_out);
+
+/** Cancel a key-generation stream and release backend resources. */
+void ml_dsa_65_keygen_streaming_abort(mldsa_keygen_state_t *state);
 
 #endif /* _ML_DSA_65_H_ */

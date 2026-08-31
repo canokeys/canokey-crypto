@@ -404,3 +404,22 @@ __attribute__((weak)) int ml_dsa_65_keygen_streaming(uint8_t *out, size_t out_si
   return -1;
 #endif
 }
+
+__attribute__((weak)) void ml_dsa_65_sign_streaming_abort(mldsa_sign_state_t *state) {
+  if (state == NULL) return;
+#ifdef USE_MBEDCRYPTO
+  mldsa65_stream_cache_release(mldsa65_stream_cache_find(state));
+  mbedtls_platform_zeroize(state, sizeof(*state));
+#else
+  memset(state, 0, sizeof(*state));
+#endif
+}
+
+__attribute__((weak)) void ml_dsa_65_keygen_streaming_abort(mldsa_keygen_state_t *state) {
+  if (state == NULL) return;
+#ifdef USE_MBEDCRYPTO
+  mbedtls_platform_zeroize(state, sizeof(*state));
+#else
+  memset(state, 0, sizeof(*state));
+#endif
+}
