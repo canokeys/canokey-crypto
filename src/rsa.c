@@ -35,14 +35,21 @@ static int rsa_init_private_context(mbedtls_rsa_context *rsa, const rsa_key_t *k
   mbedtls_mpi_init(&q1);
   mbedtls_mpi_init(&phi);
 
+  // D is a pure function of (P, Q, E) and is needed internally by mbedTLS, so
+  // derive it. The CRT parameters DP/DQ/QP, however, must be taken from the
+  // key exactly as imported: hardware ports (e.g. CIU) use them as-is and
+  // reject an inconsistent CRT result, and silently recomputing them here
+  // would "repair" corrupt keys on host-side builds only, diverging from the
+  // device. mbedtls_rsa_check_privkey validates DP/DQ/QP against (P, Q, D, E)
+  // and fails the operation on an inconsistent key, mirroring the device.
   if (rsa_init_public_context(rsa, key) < 0 ||
       mbedtls_mpi_sub_int(&p1, &rsa->MBEDTLS_PRIVATE(P), 1) < 0 ||
       mbedtls_mpi_sub_int(&q1, &rsa->MBEDTLS_PRIVATE(Q), 1) < 0 ||
       mbedtls_mpi_mul_mpi(&phi, &p1, &q1) < 0 ||
       mbedtls_mpi_inv_mod(&rsa->MBEDTLS_PRIVATE(D), &rsa->MBEDTLS_PRIVATE(E), &phi) < 0 ||
-      mbedtls_mpi_mod_mpi(&rsa->MBEDTLS_PRIVATE(DP), &rsa->MBEDTLS_PRIVATE(D), &p1) < 0 ||
-      mbedtls_mpi_mod_mpi(&rsa->MBEDTLS_PRIVATE(DQ), &rsa->MBEDTLS_PRIVATE(D), &q1) < 0 ||
-      mbedtls_mpi_inv_mod(&rsa->MBEDTLS_PRIVATE(QP), &rsa->MBEDTLS_PRIVATE(Q), &rsa->MBEDTLS_PRIVATE(P)) < 0) {
+      mbedtls_mpi_read_binary(&rsa->MBEDTLS_PRIVATE(DP), key->dp, key->nbits / 16) < 0 ||
+      mbedtls_mpi_read_binary(&rsa->MBEDTLS_PRIVATE(DQ), key->dq, key->nbits / 16) < 0 ||
+      mbedtls_mpi_read_binary(&rsa->MBEDTLS_PRIVATE(QP), key->qinv, key->nbits / 16) < 0) {
     goto cleanup;
   }
 
