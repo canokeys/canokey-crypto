@@ -51,6 +51,25 @@ int rsa_get_public_key(rsa_key_t *key, uint8_t *n);
  */
 int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output);
 
+/**
+ * Validate an RSA private key's CRT components for consistency.
+ *
+ * Checks that p and q are odd and distinct, then runs one private-key
+ * operation on a fixed probe input. Every rsa_private implementation is
+ * required to verify the CRT result before exposing it (the CIU hardware path
+ * verifies both congruences; the mbedTLS fallback validates DP/DQ/QP via
+ * mbedtls_rsa_check_privkey), so a key with inconsistent dp/dq/qinv fails
+ * here exactly as it would at use time. p == q with self-consistent
+ * components cannot be detected by a private-op probe, hence the explicit
+ * structural checks.
+ *
+ * Intended for key-import validation. Cost is one private-key operation.
+ *
+ * @param key The given private key.
+ * @return 0 when the key is consistent.
+ */
+int rsa_check_crt(const rsa_key_t *key);
+
 int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
 
 int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out, uint8_t *invalid_padding);

@@ -172,6 +172,26 @@ int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, const size_t le
   return rsa_private(key, sig, sig);
 }
 
+// Deliberately outside the USE_MBEDCRYPTO guard: this only needs rsa_private,
+// which hardware ports override with a strong symbol. In-place input/output is
+// safe: both the mbedTLS path (mpi-read before write) and the CIU path
+// (component copies before write) read the input fully first, and the PIV GA
+// path already relies on in-place rsa_private.
+__attribute__((weak)) int rsa_check_crt(const rsa_key_t *key) {
+  if (key->nbits == 0 || key->nbits > RSA_N_BIT_MAX || key->nbits % 16 != 0) return -1;
+  const size_t pq_len = key->nbits / 16;
+  // Structural checks a private-op probe cannot detect: with p == q and
+  // self-consistent exponents the CRT congruences still hold, and an even
+  // "prime" is never a valid factor.
+  if ((key->p[pq_len - 1] & 1) == 0 || (key->q[pq_len - 1] & 1) == 0) return -1;
+  if (memcmp(key->p, key->q, pq_len) == 0) return -1;
+  // Probe: one private op on a fixed input (well below any valid modulus).
+  // rsa_private must verify the CRT result, so inconsistent dp/dq/qinv fail.
+  uint8_t probe[RSA_N_BIT_MAX / 8] = {0};
+  probe[key->nbits / 8 - 1] = 2;
+  return rsa_private(key, probe, probe);
+}
+
 int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out,
                          uint8_t *invalid_padding) {
   *invalid_padding = 0;
