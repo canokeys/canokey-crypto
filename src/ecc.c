@@ -594,6 +594,7 @@ __attribute__((weak)) int K__short_weierstrass_sign(key_type_t type, const ecc_k
 __attribute__((weak)) int K__short_weierstrass_ecdh(key_type_t type, const uint8_t *priv_key,
                                                     const uint8_t *receiver_pub_key, uint8_t *out) {
 #ifdef USE_MBEDCRYPTO
+  int ret = -1;
   mbedtls_mpi d;
   mbedtls_ecp_group grp;
   mbedtls_ecp_point pnt;
@@ -601,29 +602,40 @@ __attribute__((weak)) int K__short_weierstrass_ecdh(key_type_t type, const uint8
   mbedtls_ecp_group_init(&grp);
   mbedtls_ecp_point_init(&pnt);
 
+  int mres;
   if (type == SM2) {
-    LOAD_GROUP_A(sm2);
+    mres = LOAD_GROUP_A(sm2);
   } else {
-    mbedtls_ecp_group_load(&grp, grp_id[type]);
+    mres = mbedtls_ecp_group_load(&grp, grp_id[type]);
   }
-  mbedtls_mpi_read_binary(&d, priv_key, PRIVATE_KEY_LENGTH[type]);
-  mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, PRIVATE_KEY_LENGTH[type]);
-  mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
-  mbedtls_mpi_lset(&pnt.Z, 1);
-  mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL);
-  mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]);
-  mbedtls_mpi_write_binary(&pnt.Y, out + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]);
+  if (mres != 0) goto cleanup;
+  if (mbedtls_mpi_read_binary(&d, priv_key, PRIVATE_KEY_LENGTH[type]) != 0) goto cleanup;
+  if (mbedtls_mpi_read_binary(&pnt.X, receiver_pub_key, PRIVATE_KEY_LENGTH[type]) != 0) goto cleanup;
+  if (mbedtls_mpi_read_binary(&pnt.Y, receiver_pub_key + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]) != 0)
+    goto cleanup;
+  if (mbedtls_mpi_lset(&pnt.Z, 1) != 0) goto cleanup;
+  // Reject out-of-field and off-curve peer points before the scalar multiply,
+  // mirroring the hardware ports (e.g. CIU weierstrass_ecdh -> public_key_valid,
+  // which checks X,Y < p and the curve equation). Without this, ECDH is exposed
+  // to invalid-curve attacks and host builds diverge from the device.
+  if (mbedtls_ecp_check_pubkey(&grp, &pnt) != 0) goto cleanup;
+  if (mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL) != 0) goto cleanup;
+  if (mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]) != 0) goto cleanup;
+  if (mbedtls_mpi_write_binary(&pnt.Y, out + PRIVATE_KEY_LENGTH[type], PRIVATE_KEY_LENGTH[type]) != 0) goto cleanup;
+  ret = 0;
 
+cleanup:
   mbedtls_mpi_free(&d);
   mbedtls_ecp_group_free(&grp);
   mbedtls_ecp_point_free(&pnt);
+  return ret;
 #else
   (void)type;
   (void)priv_key;
   (void)receiver_pub_key;
   (void)out;
-#endif
   return 0;
+#endif
 }
 
 __attribute__((weak)) void K__ed25519_publickey(const K__ed25519_secret_key sk, K__ed25519_public_key pk) {
