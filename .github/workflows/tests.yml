@@ -13,7 +13,7 @@ jobs:
         sudo pip install cpp-coveralls
 
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         submodules: recursive
 
@@ -47,4 +47,3 @@ jobs:
         rm -rf build
         cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DUSE_MBEDCRYPTO=OFF
         cmake --build build -j$(nproc)
-
