@@ -102,7 +102,9 @@ __attribute__((weak)) int sm2_key_exchange(sm2_ke_role_t role, const uint8_t *id
     goto cleanup;
   grp.pbits = mbedtls_mpi_bitlen(&grp.P);
   grp.nbits = mbedtls_mpi_bitlen(&grp.N);
-  grp.h = 1;
+  // Mbed TLS uses h == 1 for static parameters, not the curve cofactor.
+  // These MPIs are heap-owned and must be released by mbedtls_ecp_group_free.
+  grp.h = 0;
 
   /* Both peer points must have field-element coordinates and lie on the SM2 curve. */
   if (mbedtls_mpi_read_binary(&p_static.X, peer_static_pub, SM2_KE_SCALAR_SIZE) != 0 ||
