@@ -37,11 +37,9 @@ static int rsa_init_private_context(mbedtls_rsa_context *rsa, const rsa_key_t *k
 
   // D is a pure function of (P, Q, E) and is needed internally by mbedTLS, so
   // derive it. The CRT parameters DP/DQ/QP, however, must be taken from the
-  // key exactly as imported: hardware ports (e.g. CIU) use them as-is and
-  // reject an inconsistent CRT result, and silently recomputing them here
-  // would "repair" corrupt keys on host-side builds only, diverging from the
-  // device. mbedtls_rsa_check_privkey validates DP/DQ/QP against (P, Q, D, E)
-  // and fails the operation on an inconsistent key, mirroring the device.
+  // key exactly as imported. Silently recomputing them would "repair" corrupt
+  // keys instead of rejecting them. mbedtls_rsa_check_privkey validates
+  // DP/DQ/QP against (P, Q, D, E) and fails on an inconsistent key.
   if (rsa_init_public_context(rsa, key) < 0 ||
       mbedtls_mpi_sub_int(&p1, &rsa->MBEDTLS_PRIVATE(P), 1) < 0 ||
       mbedtls_mpi_sub_int(&q1, &rsa->MBEDTLS_PRIVATE(Q), 1) < 0 ||
@@ -174,9 +172,8 @@ int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, const size_t le
 
 // Deliberately outside the USE_MBEDCRYPTO guard: this only needs rsa_private,
 // which hardware ports override with a strong symbol. In-place input/output is
-// safe: both the mbedTLS path (mpi-read before write) and the CIU path
-// (component copies before write) read the input fully first, and the PIV GA
-// path already relies on in-place rsa_private.
+// required: implementations must read the input fully before writing output,
+// as the PIV GA path already relies on in-place rsa_private.
 __attribute__((weak)) int rsa_check_crt(const rsa_key_t *key) {
   if (key->nbits == 0 || key->nbits > RSA_N_BIT_MAX || key->nbits % 16 != 0) return -1;
   const size_t pq_len = key->nbits / 16;

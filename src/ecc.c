@@ -615,9 +615,7 @@ __attribute__((weak)) int K__short_weierstrass_ecdh(key_type_t type, const uint8
     goto cleanup;
   if (mbedtls_mpi_lset(&pnt.Z, 1) != 0) goto cleanup;
   // Reject out-of-field and off-curve peer points before the scalar multiply,
-  // mirroring the hardware ports (e.g. CIU weierstrass_ecdh -> public_key_valid,
-  // which checks X,Y < p and the curve equation). Without this, ECDH is exposed
-  // to invalid-curve attacks and host builds diverge from the device.
+  // checking X,Y < p and the curve equation to prevent invalid-curve attacks.
   if (mbedtls_ecp_check_pubkey(&grp, &pnt) != 0) goto cleanup;
   if (mbedtls_ecp_mul(&grp, &pnt, &d, &pnt, mbedtls_rnd, NULL) != 0) goto cleanup;
   if (mbedtls_mpi_write_binary(&pnt.X, out, PRIVATE_KEY_LENGTH[type]) != 0) goto cleanup;

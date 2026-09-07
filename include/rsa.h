@@ -56,10 +56,9 @@ int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output);
  *
  * Checks that p and q are odd and distinct, then runs one private-key
  * operation on a fixed probe input. Every rsa_private implementation is
- * required to verify the CRT result before exposing it (the CIU hardware path
- * verifies both congruences; the mbedTLS fallback validates DP/DQ/QP via
- * mbedtls_rsa_check_privkey), so a key with inconsistent dp/dq/qinv fails
- * here exactly as it would at use time. p == q with self-consistent
+ * required to verify the CRT result before exposing it (the mbedTLS fallback
+ * validates DP/DQ/QP via mbedtls_rsa_check_privkey), so a key with inconsistent
+ * dp/dq/qinv fails here exactly as it would at use time. p == q with self-consistent
  * components cannot be detected by a private-op probe, hence the explicit
  * structural checks.
  *
