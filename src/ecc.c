@@ -917,3 +917,9 @@ __attribute__((weak)) void K__x25519(K__x25519_key shared_secret, const K__x2551
   (void)public_key;
 #endif
 }
+
+__attribute__((weak)) int K__short_weierstrass_sign_with_scratch(key_type_t type, const ecc_key_t *key,
+  const uint8_t *digest, size_t len, uint8_t *sig, void *scratch, size_t scratch_size) {
+  (void)scratch;(void)scratch_size;
+  return K__short_weierstrass_sign(type,key,digest,len,sig);
+}

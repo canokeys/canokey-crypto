@@ -149,6 +149,10 @@ int K__short_weierstrass_complete_key(key_type_t type, ecc_key_t *key);
  *
  * @return 0: Success, -1: Error
  */
+/** Optional caller scratch, disjoint from key/input/output. The fallback uses
+ * the ordinary primitive; ports may use the scratch to reduce stack pressure. */
+int K__short_weierstrass_sign_with_scratch(key_type_t type, const ecc_key_t *key,
+  const uint8_t *digest, size_t len, uint8_t *sig, void *scratch, size_t scratch_size);
 int K__short_weierstrass_sign(key_type_t type, const ecc_key_t *key, const uint8_t *data_or_digest, size_t len,
                               uint8_t *sig);
 

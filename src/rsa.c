@@ -2,6 +2,7 @@
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include <rand.h>
 #include <rsa.h>
+#include <memzero.h>
 #include <string.h>
 
 #ifdef USE_MBEDCRYPTO
@@ -175,7 +176,13 @@ int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, const size_t le
 // required: implementations must read the input fully before writing output,
 // as the PIV GA path already relies on in-place rsa_private.
 __attribute__((weak)) int rsa_check_crt(const rsa_key_t *key) {
+  uint8_t probe[RSA_N_BIT_MAX / 8];
+  return rsa_check_crt_with_scratch(key, probe, sizeof(probe));
+}
+
+int rsa_check_crt_with_scratch(const rsa_key_t *key, uint8_t *probe, size_t capacity) {
   if (key->nbits == 0 || key->nbits > RSA_N_BIT_MAX || key->nbits % 16 != 0) return -1;
+  if (probe == NULL || capacity < key->nbits / 8) return -1;
   const size_t pq_len = key->nbits / 16;
   // Structural checks a private-op probe cannot detect: with p == q and
   // self-consistent exponents the CRT congruences still hold, and an even
@@ -184,9 +191,11 @@ __attribute__((weak)) int rsa_check_crt(const rsa_key_t *key) {
   if (memcmp(key->p, key->q, pq_len) == 0) return -1;
   // Probe: one private op on a fixed input (well below any valid modulus).
   // rsa_private must verify the CRT result, so inconsistent dp/dq/qinv fail.
-  uint8_t probe[RSA_N_BIT_MAX / 8] = {0};
+  memset(probe, 0, key->nbits / 8);
   probe[key->nbits / 8 - 1] = 2;
-  return rsa_private(key, probe, probe);
+  int result = rsa_private(key, probe, probe);
+  memzero(probe, key->nbits / 8);
+  return result;
 }
 
 int rsa_decrypt_pkcs_v15(const rsa_key_t *key, const uint8_t *in, size_t *olen, uint8_t *out,
