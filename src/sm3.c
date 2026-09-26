@@ -28,6 +28,16 @@
 
 #ifdef USE_MBEDCRYPTO
 static void sm3_compress(uint32_t digest[8], const unsigned char block[64]);
+
+static uint32_t load_be32(const uint8_t *p) {
+  return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
+}
+static void store_be32(uint8_t *p, uint32_t value) {
+  p[0] = (uint8_t)(value >> 24);
+  p[1] = (uint8_t)(value >> 16);
+  p[2] = (uint8_t)(value >> 8);
+  p[3] = (uint8_t)value;
+}
 #endif
 
 __attribute__((weak)) void sm3_init(sm3_ctx_t *ctx) {
@@ -84,8 +94,7 @@ __attribute__((weak)) void sm3_update(sm3_ctx_t *ctx, const uint8_t *data, size_
 __attribute__((weak)) void sm3_final(sm3_ctx_t *ctx, uint8_t digest[SM3_DIGEST_LENGTH]) {
 #ifdef USE_MBEDCRYPTO
   unsigned int i;
-  uint32_t *pdigest = (uint32_t *)digest;
-  uint32_t *count = (uint32_t *)(ctx->block + SM3_BLOCK_LENGTH - 8);
+  uint8_t *count = ctx->block + SM3_BLOCK_LENGTH - 8;
 
   ctx->block[ctx->num] = 0x80;
 
@@ -97,12 +106,12 @@ __attribute__((weak)) void sm3_final(sm3_ctx_t *ctx, uint8_t digest[SM3_DIGEST_L
     memset(ctx->block, 0, SM3_BLOCK_LENGTH - 8);
   }
 
-  count[0] = __builtin_bswap32(ctx->nblocks >> 23);
-  count[1] = __builtin_bswap32((ctx->nblocks << 9) + (ctx->num << 3));
+  store_be32(count, ctx->nblocks >> 23);
+  store_be32(count + 4, (ctx->nblocks << 9) + (ctx->num << 3));
 
   sm3_compress(ctx->digest, ctx->block);
   for (i = 0; i < sizeof(ctx->digest) / sizeof(ctx->digest[0]); i++) {
-    pdigest[i] = __builtin_bswap32(ctx->digest[i]);
+    store_be32(digest + 4 * i, ctx->digest[i]);
   }
   memzero(ctx, sizeof(*ctx));
 #else
@@ -112,7 +121,12 @@ __attribute__((weak)) void sm3_final(sm3_ctx_t *ctx, uint8_t digest[SM3_DIGEST_L
 }
 
 #ifdef USE_MBEDCRYPTO
-#define ROTATELEFT(X, n) (((X) << (n)) | ((X) >> (32 - (n))))
+// Round indices include zero and exceed 31; both shifts must stay below 32.
+static uint32_t rotate_left(uint32_t value, unsigned count) {
+  count &= 31;
+  return (value << count) | (value >> ((32 - count) & 31));
+}
+#define ROTATELEFT(X, n) rotate_left((X), (n))
 
 #define P0(x) ((x) ^ ROTATELEFT((x), 9) ^ ROTATELEFT((x), 17))
 #define P1(x) ((x) ^ ROTATELEFT((x), 15) ^ ROTATELEFT((x), 23))
@@ -126,7 +140,6 @@ __attribute__((weak)) void sm3_final(sm3_ctx_t *ctx, uint8_t digest[SM3_DIGEST_L
 void sm3_compress(uint32_t digest[8], const unsigned char block[64]) {
   int j;
   uint32_t W[68], W1[64];
-  const uint32_t *pblock = (const uint32_t *)block;
 
   uint32_t A = digest[0];
   uint32_t B = digest[1];
@@ -139,7 +152,7 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64]) {
   uint32_t SS1, SS2, TT1, TT2, T[64];
 
   for (j = 0; j < 16; j++) {
-    W[j] = __builtin_bswap32(pblock[j]);
+    W[j] = load_be32(block + 4 * j);
   }
   for (j = 16; j < 68; j++) {
     W[j] = P1(W[j - 16] ^ W[j - 9] ^ ROTATELEFT(W[j - 3], 15)) ^ ROTATELEFT(W[j - 13], 7) ^ W[j - 6];

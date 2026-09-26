@@ -17,3 +17,9 @@ if(TEST_WITH_MBEDCRYPTO)
         ${CMAKE_SOURCE_DIR}/tf-psa-crypto/drivers/builtin/include
     )
 endif()
+
+if(USE_MBEDCRYPTO)
+    add_executable(sm3-correctness sm3_correctness.c)
+    target_link_libraries(sm3-correctness PRIVATE canokey-crypto)
+    add_test(NAME sm3-correctness COMMAND sm3-correctness)
+endif()
