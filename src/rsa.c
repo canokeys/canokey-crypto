@@ -188,7 +188,11 @@ int rsa_check_crt_with_scratch(const rsa_key_t *key, uint8_t *probe, size_t capa
   // self-consistent exponents the CRT congruences still hold, and an even
   // "prime" is never a valid factor.
   if ((key->p[pq_len - 1] & 1) == 0 || (key->q[pq_len - 1] & 1) == 0) return -1;
-  if (memcmp(key->p, key->q, pq_len) == 0) return -1;
+  // Reject p == q with a full-length equality pass: an early-exit memcmp
+  // would leak the common-prefix length of the two secret primes.
+  uint8_t pq_diff = 0;
+  for (size_t i = 0; i < pq_len; i++) pq_diff |= (uint8_t)(key->p[i] ^ key->q[i]);
+  if (pq_diff == 0) return -1;
   // Probe: one private op on a fixed input (well below any valid modulus).
   // rsa_private must verify the CRT result, so inconsistent dp/dq/qinv fail.
   memset(probe, 0, key->nbits / 8);
