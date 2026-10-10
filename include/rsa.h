@@ -68,6 +68,8 @@ int rsa_private(const rsa_key_t *key, const uint8_t *input, uint8_t *output);
  * @return 0 when the key is consistent.
  */
 int rsa_check_crt(const rsa_key_t *key);
+/** Same validation using caller-owned modulus-sized scratch, wiped on return. */
+int rsa_check_crt_with_scratch(const rsa_key_t *key, uint8_t *probe, size_t capacity);
 
 int rsa_sign_pkcs_v15(const rsa_key_t *key, const uint8_t *data, size_t len, uint8_t *sig);
 
