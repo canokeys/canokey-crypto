@@ -53,6 +53,14 @@ static void test_rsa128_decrypt(void **state) {
   for (int i = 0; i != 16; ++i) {
     assert_int_equal(buf[i], expected[i]);
   }
+  assert_int_equal(rsa_check_crt(&key), 0);
+  key.dp[sizeof(dp) - 1] ^= 1;
+  assert_int_equal(rsa_check_crt(&key), -1);
+  key.dp[sizeof(dp) - 1] ^= 1;
+  key.q[sizeof(q) - 1] &= 0xFE;
+  assert_int_equal(rsa_check_crt(&key), -1);
+  memcpy(key.q, key.p, sizeof(q));
+  assert_int_equal(rsa_check_crt(&key), -1);
 }
 
 int main() {
