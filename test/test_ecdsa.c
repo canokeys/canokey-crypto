@@ -48,7 +48,8 @@ static int sm2_verify(const uint8_t *pub, const uint8_t *sig, const uint8_t *dig
   mbedtls_mpi_read_string(&grp.N, 16, "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123");
   grp.pbits = mbedtls_mpi_bitlen(&grp.P);
   grp.nbits = mbedtls_mpi_bitlen(&grp.N);
-  grp.h = 1;
+  // h == 1 means static parameters; these MPIs are heap-owned.
+  grp.h = 0;
 
   mbedtls_mpi_read_binary(&r, sig, 32);
   mbedtls_mpi_read_binary(&s, sig + 32, 32);

@@ -13,13 +13,14 @@ Public headers:
 
 - `aes.h`, `des.h`, `block-cipher.h`
 - `ecc.h`, `rsa.h`, `algo.h`
+- `ml-dsa-44.h`, `ml-dsa-65.h`, `ml-kem-512.h`, `ml-kem-768.h`
 - `sha.h`, `sm3.h`, `sha3.h`, `hmac.h`
 - `rand.h`, `crypto-util.h`, `memzero.h`
 
 Default implementations:
 
 - Symmetric crypto: AES, DES/3DES, block cipher helpers
-- Public-key crypto: ECC, RSA
+- Public-key crypto: ECC, RSA, ML-DSA-44/65, ML-KEM-512/768
 - Hashing: SHA-1, SHA-256, SHA-512, SM3, SHA-3, SHAKE
 - Helpers: HMAC, random, byte/format utilities, secure zeroization
 
@@ -44,6 +45,22 @@ Important CMake options:
   When tests are enabled, also build cross-validation tests against Mbed Crypto.
 
 When `USE_MBEDCRYPTO=ON`, the `tf-psa-crypto` submodule must be present.
+
+## Post-quantum backends
+
+With `USE_MBEDCRYPTO=ON`, both ML-DSA parameter sets share a wrapper template
+around mldsa-native, and both ML-KEM sets share one around mlkem-native. Public
+entrypoints remain weak so platforms can override them. The host ML-DSA fallback
+signs deterministically; CIU production signing uses its TRNG-backed hedged
+implementation. With `USE_MBEDCRYPTO=OFF`, PQ weak fallbacks return errors and
+the platform supplies the implementations.
+
+The host signing streams share two cache slots across parameter sets. Complete
+or abort each stream to release its slot. ML-DSA-44 split streams use the same
+common-state abort API as ML-DSA-65; callers also wipe their separate hint buffer.
+`pq-native-correctness` checks independent reference digests for all four sets,
+streaming and precomputed-mu signatures, abort cleanup, callback errors, and
+exact ML-KEM implicit rejection. It runs in both crypto and core test builds.
 
 ## API notes
 

@@ -219,7 +219,8 @@ static void test_sm2_ke_reject_infinity(void **state) {
   mbedtls_mpi_read_string(&grp.N, 16, "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123");
   grp.pbits = mbedtls_mpi_bitlen(&grp.P);
   grp.nbits = mbedtls_mpi_bitlen(&grp.N);
-  grp.h = 1;
+  // h == 1 means static parameters; these MPIs are heap-owned.
+  grp.h = 0;
 
   uint8_t r_buf[32];
   memset(r_buf, 0, sizeof(r_buf));

@@ -39,7 +39,7 @@
                         + MLDSA_L * MLDSA_POLYETA_PACKEDBYTES             \
                         + MLDSA_K * MLDSA_POLYETA_PACKEDBYTES             \
                         + MLDSA_K * MLDSA_POLYT0_PACKEDBYTES)
-/* 32 + 32 + 64 + 5*128 + 6*128 + 6*416 = 4000 bytes */
+/* 32 + 32 + 64 + 5*128 + 6*128 + 6*416 = 4032 bytes */
 
 /* Signature size */
 #define MLDSA_SIG_BYTES (MLDSA_C_TILDE_BYTES                   \
