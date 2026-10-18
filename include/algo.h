@@ -2,6 +2,7 @@
 #define CANOKEY_CRYPTO_ALGO_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
   SECP256R1,
@@ -16,6 +17,8 @@ typedef enum {
   SM2,
   MLKEM768,
   MLDSA65,
+  MLKEM512,
+  MLDSA44,
   KEY_TYPE_PKC_END,
   TDEA,
   AES128,
@@ -23,9 +26,10 @@ typedef enum {
   AES192,
 } key_type_t;
 
-extern const size_t PRIVATE_KEY_LENGTH[KEY_TYPE_PKC_END];
-extern const size_t PUBLIC_KEY_LENGTH[KEY_TYPE_PKC_END];
-extern const size_t SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
+/* Encoded lengths fit in 16 bits; widen to size_t at arithmetic boundaries. */
+extern const uint16_t PRIVATE_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern const uint16_t PUBLIC_KEY_LENGTH[KEY_TYPE_PKC_END];
+extern const uint16_t SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
 
 #define IS_ECC(type)                                                                                                   \
   ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SECP521R1 || (type) == SM2 ||        \
@@ -33,7 +37,7 @@ extern const size_t SIGNATURE_LENGTH[KEY_TYPE_PKC_END];
 #define IS_SHORT_WEIERSTRASS(type)                                                                                     \
   ((type) == SECP256R1 || (type) == SECP256K1 || (type) == SECP384R1 || (type) == SECP521R1 || (type) == SM2)
 #define IS_RSA(type) ((type) == RSA2048 || (type) == RSA3072 || (type) == RSA4096)
-#define IS_MLKEM(type) ((type) == MLKEM768)
-#define IS_MLDSA(type) ((type) == MLDSA65)
+#define IS_MLKEM(type) ((type) == MLKEM768 || (type) == MLKEM512)
+#define IS_MLDSA(type) ((type) == MLDSA65 || (type) == MLDSA44)
 
 #endif // CANOKEY_CRYPTO_ALGO_H
